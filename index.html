@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Side Quest Generátor</title>
+
+  <!-- Fonty z Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== Barvy (měníš je na jednom místě) ===== */
+    :root {
+      --wine: #772C3A;
+      --cream: #F4E5A7;
+      --brown: #35211F;
+      --pink: #E8C5C3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: var(--cream);
+      color: var(--brown);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 7vw, 3rem);
+      color: var(--wine);
+      margin: 0 0 8px;
+    }
+
+    .subtitle {
+      margin: 0 0 32px;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    /* ===== Tlačítka úrovní ===== */
+    .levels {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .level-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .level {
+      padding: 12px 8px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .level:hover { background: var(--pink); }
+
+    .level.active {
+      background: var(--wine);
+      color: var(--cream);
+    }
+
+    /* Pokrok pod každou úrovní ("Splněno 3/10") */
+    .progress {
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    /* ===== Hlavní tlačítko ===== */
+    .generate {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 16px;
+      background: var(--brown);
+      color: var(--cream);
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(53, 33, 31, 0.25);
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .generate:hover { background: var(--wine); }
+    .generate:active { transform: scale(0.98); }
+
+    /* ===== Karta s questem ===== */
+    .card {
+      margin-top: 28px;
+      padding: 32px 24px;
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--pink);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(119, 44, 58, 0.15);
+    }
+
+    .card-level {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--wine);
+      margin-bottom: 12px;
+    }
+
+    .quest {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.3rem, 5vw, 1.7rem);
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    .placeholder {
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    [hidden] { display: none !important; }
+
+    /* ===== Tlačítko "Hotovo ✓" pod questem ===== */
+    .done {
+      align-self: center;
+      margin-top: 20px;
+      padding: 8px 20px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .done:hover:not(:disabled) {
+      background: var(--wine);
+      color: var(--cream);
+    }
+
+    .done:disabled {
+      border-color: transparent;
+      cursor: default;
+    }
+
+    /* ===== Nenápadný odkaz "Začít znovu" ===== */
+    .reset {
+      margin-top: 28px;
+      padding: 4px;
+      border: none;
+      background: none;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 0.8rem;
+      text-decoration: underline;
+      opacity: 0.7;
+      cursor: pointer;
+    }
+
+    .reset:hover { opacity: 1; }
+
+    /* Jemné objevení nového questu */
+    .fade-in { animation: fadeIn 0.5s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Úzké obrazovky (mobil) */
+    @media (max-width: 420px) {
+      .level { font-size: 0.85rem; padding: 10px 4px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Side Quest Generátor</h1>
+    <p class="subtitle">Malé výzvy pro velký den. Vyber si úroveň a nech se překvapit.</p>
+
+    <div class="label">Vyber úroveň</div>
+    <div class="levels">
+      <div class="level-item">
+        <button class="level active" data-level="easy">Lehká</button>
+        <span class="progress" data-progress="easy"></span>
+      </div>
+      <div class="level-item">
+        <button class="level" data-level="medium">Střední</button>
+        <span class="progress" data-progress="medium"></span>
+      </div>
+      <div class="level-item">
+        <button class="level" data-level="hard">Těžká</button>
+        <span class="progress" data-progress="hard"></span>
+      </div>
+    </div>
+
+    <button class="generate" id="generate">Dej mi side quest ✨</button>
+
+    <div class="card" id="card">
+      <div class="card-level" id="card-level"></div>
+      <p class="quest placeholder" id="quest">Tvůj side quest se objeví tady.</p>
+      <button class="done" id="done" hidden>Hotovo ✓</button>
+    </div>
+
+    <button class="reset" id="reset">Začít znovu</button>
+  </main>
+
+  <!-- Seznam questů je v samostatném souboru quests.js (musí být ve stejné složce) -->
+  <script src="quests.js"></script>
+
+  <script>
+    const levelNames = { easy: "Lehká", medium: "Střední", hard: "Těžká" };
+
+    // Zpráva, když je celá úroveň splněná
+    const levelDoneMessages = {
+      easy: "🎉 Všechny lehké questy splněny! Rozjezd máš za sebou, zkus střední úroveň.",
+      medium: "🌟 Střední úroveň pokořena! Jsi odvážnější, než si myslíš.",
+      hard: "👑 Všechny těžké questy hotové! Oficiálně jsi the main character svého života."
+    };
+
+    // Pod tímto názvem si prohlížeč (localStorage) pamatuje ID splněných questů
+    const STORAGE_KEY = "sideQuestDone";
+
+    let currentLevel = "easy";  // na začátku je vybraná lehká úroveň
+    let lastQuestId = "";       // pamatujeme si ID posledního questu, ať se hned neopakuje
+    let currentQuest = null;    // quest, který je právě vidět na kartě
+    let doneIds = loadDone();   // seznam ID splněných questů, např. ["easy-003", "hard-007"]
+
+    const levelButtons = document.querySelectorAll(".level");
+    const questText = document.getElementById("quest");
+    const cardLevel = document.getElementById("card-level");
+    const card = document.getElementById("card");
+    const doneButton = document.getElementById("done");
+    const placeholderText = questText.textContent;
+
+    // Načte splněné questy z prohlížeče (když nic není nebo je to rozbité, začne s prázdným seznamem)
+    function loadDone() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return Array.isArray(saved) ? saved : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // Uloží splněné questy do prohlížeče (když to prohlížeč nedovolí, appka funguje dál, jen si nic nepamatuje)
+    function saveDone() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(doneIds));
+      } catch (e) {}
+    }
+
+    // Questy z dané úrovně, které ještě nejsou splněné
+    function remainingQuests(level) {
+      return QUESTS[level].filter(q => !doneIds.includes(q.id));
+    }
+
+    // Přepíše "Splněno 3/10" pod každou úrovní
+    function updateProgress() {
+      if (typeof QUESTS === "undefined") return;
+      document.querySelectorAll(".progress").forEach(el => {
+        const list = QUESTS[el.dataset.progress];
+        const count = list.length - remainingQuests(el.dataset.progress).length;
+        el.textContent = "Splněno " + count + "/" + list.length;
+      });
+    }
+
+    // Ukáže text na kartě s jemnou animací
+    function showOnCard(levelText, text) {
+      cardLevel.textContent = levelText;
+      questText.textContent = text;
+      questText.classList.remove("placeholder");
+
+      // Restart animace, aby se každý nový quest jemně objevil
+      card.classList.remove("fade-in");
+      void card.offsetWidth;
+      card.classList.add("fade-in");
+    }
+
+    // Oslavná zpráva za splněnou úroveň
+    function showLevelDone(level) {
+      currentQuest = null;
+      doneButton.hidden = true;
+      showOnCard(levelNames[level] + " úroveň", levelDoneMessages[level]);
+    }
+
+    // Kliknutí na úroveň: označí ji jako vybranou
+    levelButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        levelButtons.forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+        currentLevel = button.dataset.level;
+      });
+    });
+
+    // Kliknutí na hlavní tlačítko: vybere náhodný nesplněný quest
+    document.getElementById("generate").addEventListener("click", () => {
+      // Když se soubor quests.js nenačetl, řekneme to místo tichého selhání
+      if (typeof QUESTS === "undefined") {
+        questText.textContent = "Nepodařilo se načíst questy. Zkontroluj, že je soubor quests.js ve stejné složce jako index.html.";
+        return;
+      }
+
+      const list = remainingQuests(currentLevel);
+      if (list.length === 0) {
+        showLevelDone(currentLevel);
+        return;
+      }
+
+      let quest;
+      do {
+        quest = list[Math.floor(Math.random() * list.length)];
+      } while (list.length > 1 && quest.id === lastQuestId);
+      lastQuestId = quest.id;
+      currentQuest = { level: currentLevel, id: quest.id };
+
+      doneButton.textContent = "Hotovo ✓";
+      doneButton.disabled = false;
+      doneButton.hidden = false;
+      showOnCard(levelNames[currentLevel] + " úroveň", quest.text);
+    });
+
+    // Kliknutí na "Hotovo ✓": uloží ID questu jako splněné
+    doneButton.addEventListener("click", () => {
+      if (!currentQuest) return;
+      const quest = currentQuest;
+
+      if (!doneIds.includes(quest.id)) {
+        doneIds.push(quest.id);
+        saveDone();
+      }
+      updateProgress();
+      doneButton.textContent = "Splněno 🎉";
+      doneButton.disabled = true;
+
+      // Byl to poslední quest úrovně? Chvilku ukážeme "Splněno", pak oslavu
+      if (remainingQuests(quest.level).length === 0) {
+        setTimeout(() => {
+          if (currentQuest === quest) showLevelDone(quest.level);
+        }, 1200);
+      }
+    });
+
+    // "Začít znovu": po potvrzení smaže všechny splněné questy
+    document.getElementById("reset").addEventListener("click", () => {
+      if (!confirm("Opravdu chceš smazat všechny splněné questy a začít znovu?")) return;
+
+      doneIds = [];
+      saveDone();
+      updateProgress();
+
+      currentQuest = null;
+      lastQuestId = "";
+      doneButton.hidden = true;
+      cardLevel.textContent = "";
+      questText.textContent = placeholderText;
+      questText.classList.add("placeholder");
+    });
+
+    updateProgress();
+  </script>
+</body>
+</html>
