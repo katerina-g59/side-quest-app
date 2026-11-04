@@ -72,6 +72,9 @@ writing code.
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
 - ⭐ **Mobile polish + your own icon**: make it look great on phones, with a custom
   app icon for the browser tab and the phone's home screen.
+- **„Zpět" (undo) for „Hotovo ✓"**: a misclicked „Hotovo ✓" can't be undone right now.
+  The only option is „Začít znovu", which deletes everything. Add a „Zpět" button that
+  removes just that quest's ID from the saved list.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
