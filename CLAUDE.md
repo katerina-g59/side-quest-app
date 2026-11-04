@@ -70,6 +70,8 @@ writing code.
 - **Quest categories**, e.g. movement, creativity, relationships, rest, so you can
   filter or pick by mood. Add a `category` field to each quest in `quests.js`.
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
+- ⭐ **Mobile polish + your own icon**: make it look great on phones, with a custom
+  app icon for the browser tab and the phone's home screen.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
