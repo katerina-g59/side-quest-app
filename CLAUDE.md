@@ -18,6 +18,14 @@ A small web page that gives overwhelmed young women working in corporate a rando
 
 Both files must stay in the same folder. No frameworks, no build step, nothing to install.
 
+## Online (GitHub)
+- Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)
+- Repository: https://github.com/katerina-g59/side-quest-app (public)
+- To publish a change: `git add .` → `git commit -m "..."` → `git push`. The live site
+  updates 1–2 minutes later. Commit messages are in English.
+- Git signs commits as `katerina-g59` with the GitHub noreply email (never the real name
+  or Gmail). Git is at `C:\Program Files\Git\cmd\git.exe` if `git` isn't on PATH.
+
 ## Important rules
 1. **Must work by double-clicking `index.html` (no server).**
    - The browser blocks `fetch()` of local files, so quests live in a `.js` file loaded
@@ -61,8 +69,7 @@ writing code.
   mark a quest as started and come back to it later. Save it by ID in localStorage too.
 - **Quest categories**, e.g. movement, creativity, relationships, rest, so you can
   filter or pick by mood. Add a `category` field to each quest in `quests.js`.
-- **Putting the app online with GitHub Pages**, so it can be opened from a phone.
-  It's a static site, so this needs no changes to the code: just upload both files.
+- ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
