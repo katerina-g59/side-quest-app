@@ -15,9 +15,10 @@ A small web page that gives overwhelmed young women working in corporate a rando
 - `quests.js` – only the list of quests, grouped by level (`easy`, `medium`, `hard`).
   Each quest is `{ id: "easy-001", text: "..." }`. The file starts with a Czech comment
   explaining how to add quests.
-- `icon.png` – the phone home-screen icon (512×512, made by the owner). Linked as
-  `apple-touch-icon` for iPhone and from the manifest for Android. It is **not** the
-  browser tab icon: the owner will make a separate, simpler file for the tab.
+- `icon.png` – the app icon: a hand-drawn cream star on wine (512×512, made by the
+  owner). Used everywhere: browser tab (`rel="icon"`), iPhone home screen
+  (`apple-touch-icon`) and Android (from the manifest). The owner replaces it by
+  saving a new file with the same name.
 - `manifest.webmanifest` – app name, short name „Side Quests", icon, colors and
   `display: standalone`, so Android opens the home-screen app without an address bar
   (iOS does that by itself). Ignored when the app is opened from a file.
@@ -76,9 +77,9 @@ writing code.
 - **Quest categories**, e.g. movement, creativity, relationships, rest, so you can
   filter or pick by mood. Add a `category` field to each quest in `quests.js`.
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
-- ⭐ **Mobile polish + your own icon**: make it look great on phones. Home-screen icon
-  is done (`icon.png`). Still to do: a separate small browser tab icon (the owner
-  will make it; add it with `<link rel="icon" …>`) and further mobile polish.
+- ⭐ **Mobile polish + your own icon**: make it look great on phones. The icon is done
+  (`icon.png`, also the tab icon). Still to do: further mobile polish. Maybe a version
+  with thicker lines for the tab, if the thin star looks too faint there.
 - **„Zpět" (undo) for „Hotovo ✓"**: a misclicked „Hotovo ✓" can't be undone right now.
   The only option is „Začít znovu", which deletes everything. Add a „Zpět" button that
   removes just that quest's ID from the saved list.
