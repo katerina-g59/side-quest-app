@@ -11,6 +11,9 @@ A small web page that gives overwhelmed young women working in corporate a rando
   the last quest of a level).
 - Switching to a different level clears the card. Clicking the already selected level
   does nothing.
+- „Můj deník 📖" (under the card) opens the quest journal: a window listing all
+  completed quests by level, newest first, with the completion date (e.g. „6. 11. 2026").
+  Quests completed before dates were saved have no date and come last. View only.
 - Each level shows its progress, e.g. „Splněno 3/20".
 - When a level is fully completed, a celebration message appears.
 - „Začít znovu" (with a confirmation box) clears all progress.
@@ -49,7 +52,13 @@ A small web page that gives overwhelmed young women working in corporate a rando
    - Never change, renumber or reuse an ID, even after deleting a quest.
    - Fixing a quest's text is fine; its ID stays the same.
 3. **Completed quests are saved in localStorage, by ID.**
-   - Key `sideQuestDone`, value a JSON list of IDs, e.g. `["easy-003","hard-007"]`.
+   - Key `sideQuestDone`, value a JSON list of entries:
+     `[{"id":"easy-003","date":null},{"id":"hard-007","date":"2026-11-06"}]`.
+   - `date` is the local completion day as `YYYY-MM-DD`, or `null` for quests completed
+     before dates were saved (Nov 2026).
+   - Old format (a plain list of IDs, `["easy-003"]`) is converted on load to
+     `{id, date: null}` and saved straight away. Mixed lists and duplicates are handled
+     too, so never break this conversion.
    - Never save or compare by quest text.
    - All localStorage access is wrapped in try/catch, so the app still works when
      storage is blocked (it just doesn't remember).
@@ -77,8 +86,6 @@ The owner is a beginner. Explain plans in simple words and wait for approval bef
 writing code.
 
 ## Roadmap / ideas
-- **"In progress" state for long quests**, e.g. a 20 km hike or reading a whole book:
-  mark a quest as started and come back to it later. Save it by ID in localStorage too.
 - **Quest categories**, e.g. movement, creativity, relationships, rest, so you can
   filter or pick by mood. Add a `category` field to each quest in `quests.js`.
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
@@ -86,9 +93,7 @@ writing code.
   (`icon.png`, also the tab icon). Still to do: further mobile polish. Maybe a version
   with thicker lines for the tab, if the thin star looks too faint there.
 - ~~**„Zpět" (undo) for „Hotovo ✓"**~~ – done (undo for the most recent completion).
-- **List of completed quests**: see everything you've done, per level, and undo any
-  older completion from there (not only the most recent one). Built from the IDs in
-  `sideQuestDone`, with the text looked up in `quests.js`.
+- ~~**List of completed quests**~~ – done as „Můj deník 📖" (view only, with dates).
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.

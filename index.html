@@ -209,6 +209,129 @@
 
     .undo:hover { opacity: 1; }
 
+    /* ===== Tlačítko "Můj deník 📖" ===== */
+    .journal-open {
+      display: block;
+      margin: 24px auto 0;
+      padding: 8px 20px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .journal-open:hover {
+      background: var(--wine);
+      color: var(--cream);
+    }
+
+    /* ===== Okno deníku ===== */
+    .journal {
+      width: min(560px, calc(100% - 32px));
+      max-height: calc(100% - 48px);
+      overflow-y: auto;
+      padding: 0;
+      border: none;
+      border-radius: 20px;
+      background: var(--cream);
+      color: var(--brown);
+      box-shadow: 0 12px 40px rgba(53, 33, 31, 0.35);
+    }
+
+    .journal::backdrop { background: rgba(53, 33, 31, 0.55); }
+
+    /* Když je deník otevřený, stránka pod ním se neposouvá */
+    body:has(.journal[open]) { overflow: hidden; }
+
+    .journal-inner { padding: 0 24px 24px; }
+
+    .journal-header {
+      position: sticky;
+      top: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 0 8px;
+      background: var(--cream);
+    }
+
+    .journal h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      color: var(--wine);
+      margin: 0;
+    }
+
+    /* Po otevření deníku je zaměřený nadpis (ne tlačítko "Zavřít"), bez rámečku */
+    .journal h2:focus { outline: none; }
+
+    .journal-close {
+      padding: 8px 4px;
+      border: none;
+      background: none;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      opacity: 0.8;
+      cursor: pointer;
+    }
+
+    .journal-close:hover { opacity: 1; }
+
+    .journal h3 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--wine);
+      margin: 20px 0 10px;
+    }
+
+    .journal ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .journal li {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--pink);
+    }
+
+    .journal-quest {
+      display: block;
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      line-height: 1.35;
+    }
+
+    .journal-date {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.75rem;
+      opacity: 0.75;
+    }
+
+    .journal-empty {
+      margin: 0;
+      font-size: 0.85rem;
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    .journal-empty-all { margin: 12px 0 0; }
+
     /* ===== Nenápadný odkaz "Začít znovu" ===== */
     .reset {
       margin-top: 28px;
@@ -249,6 +372,8 @@
     /* Úzké obrazovky (mobil) */
     @media (max-width: 420px) {
       .level { font-size: 0.85rem; padding: 10px 4px; }
+      .journal { width: calc(100% - 24px); max-height: calc(100% - 24px); }
+      .journal-inner { padding: 0 16px 16px; }
     }
   </style>
 </head>
@@ -284,6 +409,8 @@
       </div>
     </div>
 
+    <button class="journal-open" id="journal-open">Můj deník 📖</button>
+
     <button class="reset" id="reset">Začít znovu</button>
 
     <footer class="footer">
@@ -291,6 +418,18 @@
       <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a>
     </footer>
   </main>
+
+  <!-- Deník: okno se splněnými questy (jen na prohlížení) -->
+  <dialog class="journal" id="journal" aria-labelledby="journal-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="journal-title" tabindex="-1" autofocus>Můj deník 📖</h2>
+        <button class="journal-close" id="journal-close">Zavřít ✕</button>
+      </div>
+      <p class="journal-empty journal-empty-all" id="journal-empty" hidden>Tvůj deník je zatím prázdný. První side quest čeká! ✨</p>
+      <div id="journal-list"></div>
+    </div>
+  </dialog>
 
   <!-- Seznam questů je v samostatném souboru quests.js (musí být ve stejné složce) -->
   <script src="quests.js"></script>
@@ -305,14 +444,17 @@
       hard: "👑 Všechny těžké questy hotové! Oficiálně jsi the main character svého života."
     };
 
-    // Pod tímto názvem si prohlížeč (localStorage) pamatuje ID splněných questů
+    // Pod tímto názvem si prohlížeč (localStorage) pamatuje splněné questy.
+    // Formát: [{ "id": "easy-003", "date": "2026-11-06" }, ...]
+    // "date" je null u questů splněných dřív, než appka začala ukládat data.
     const STORAGE_KEY = "sideQuestDone";
 
-    let currentLevel = "easy";  // na začátku je vybraná lehká úroveň
-    let lastQuestId = "";       // pamatujeme si ID posledního questu, ať se hned neopakuje
-    let currentQuest = null;    // quest, který je právě vidět na kartě
-    let lastDone = null;        // quest, u kterého jde ještě kliknout na "Zpět"
-    let doneIds = loadDone();   // seznam ID splněných questů, např. ["easy-003", "hard-007"]
+    let currentLevel = "easy";      // na začátku je vybraná lehká úroveň
+    let lastQuestId = "";           // pamatujeme si ID posledního questu, ať se hned neopakuje
+    let currentQuest = null;        // quest, který je právě vidět na kartě
+    let lastDone = null;            // quest, u kterého jde ještě kliknout na "Zpět"
+    let doneEntries = loadDone();   // splněné questy s datem, viz formát výše
+    saveDone();                     // starý formát se hned uloží v novém
 
     const levelButtons = document.querySelectorAll(".level");
     const questText = document.getElementById("quest");
@@ -322,11 +464,17 @@
     const undoButton = document.getElementById("undo");
     const placeholderText = questText.textContent;
 
-    // Načte splněné questy z prohlížeče (když nic není nebo je to rozbité, začne s prázdným seznamem)
+    // Načte splněné questy z prohlížeče (když nic není nebo je to rozbité, začne s prázdným seznamem).
+    // Starý formát (jen ID, např. "easy-003") převede na { id, date: null }, nic se neztratí.
     function loadDone() {
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return Array.isArray(saved) ? saved : [];
+        if (!Array.isArray(saved)) return [];
+        const seen = new Set();
+        return saved
+          .map(item => typeof item === "string" ? { id: item, date: null } : item)
+          .filter(item => item && typeof item.id === "string" && !seen.has(item.id) && seen.add(item.id))
+          .map(item => ({ id: item.id, date: typeof item.date === "string" ? item.date : null }));
       } catch (e) {
         return [];
       }
@@ -335,13 +483,30 @@
     // Uloží splněné questy do prohlížeče (když to prohlížeč nedovolí, appka funguje dál, jen si nic nepamatuje)
     function saveDone() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(doneIds));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(doneEntries));
       } catch (e) {}
+    }
+
+    // Je quest s tímto ID splněný?
+    function isDone(id) {
+      return doneEntries.some(entry => entry.id === id);
+    }
+
+    // Dnešní datum podle místního času, např. "2026-11-06"
+    function todayString() {
+      const d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    // "2026-11-06" → "6. 11. 2026"
+    function formatDate(date) {
+      const [year, month, day] = date.split("-");
+      return Number(day) + ". " + Number(month) + ". " + year;
     }
 
     // Questy z dané úrovně, které ještě nejsou splněné
     function remainingQuests(level) {
-      return QUESTS[level].filter(q => !doneIds.includes(q.id));
+      return QUESTS[level].filter(q => !isDone(q.id));
     }
 
     // Přepíše "Splněno 3/10" pod každou úrovní
@@ -432,8 +597,8 @@
       if (!currentQuest) return;
       const quest = currentQuest;
 
-      if (!doneIds.includes(quest.id)) {
-        doneIds.push(quest.id);
+      if (!isDone(quest.id)) {
+        doneEntries.push({ id: quest.id, date: todayString() });
         saveDone();
       }
       updateProgress();
@@ -445,7 +610,7 @@
       // Byl to poslední quest úrovně? Chvilku ukážeme "Splněno", pak oslavu
       if (remainingQuests(quest.level).length === 0) {
         setTimeout(() => {
-          if (currentQuest === quest && doneIds.includes(quest.id)) showLevelDone(quest.level);
+          if (currentQuest === quest && isDone(quest.id)) showLevelDone(quest.level);
         }, 1200);
       }
     });
@@ -455,7 +620,7 @@
       if (!lastDone) return;
       const quest = lastDone;
 
-      doneIds = doneIds.filter(id => id !== quest.id);
+      doneEntries = doneEntries.filter(entry => entry.id !== quest.id);
       saveDone();
       updateProgress();
 
@@ -472,12 +637,85 @@
     document.getElementById("reset").addEventListener("click", () => {
       if (!confirm("Opravdu chceš smazat všechny splněné questy a začít znovu?")) return;
 
-      doneIds = [];
+      doneEntries = [];
       saveDone();
       updateProgress();
 
       lastQuestId = "";
       clearCard();
+    });
+
+    // ===== Deník =====
+    const journal = document.getElementById("journal");
+    const journalList = document.getElementById("journal-list");
+    const journalEmpty = document.getElementById("journal-empty");
+
+    // Postaví seznam splněných questů po úrovních (nejnovější nahoře, bez data na konci)
+    function renderJournal() {
+      journalList.innerHTML = "";
+      if (typeof QUESTS === "undefined") {
+        journalEmpty.hidden = true;
+        journalList.textContent = "Nepodařilo se načíst questy.";
+        return;
+      }
+
+      let total = 0;
+      Object.keys(levelNames).forEach(level => {
+        const items = doneEntries
+          .map((entry, order) => ({ ...entry, order, quest: QUESTS[level].find(q => q.id === entry.id) }))
+          .filter(item => item.quest)
+          .sort((a, b) => {
+            if (a.date !== b.date) {
+              if (!a.date) return 1;
+              if (!b.date) return -1;
+              return a.date < b.date ? 1 : -1;
+            }
+            return b.order - a.order;  // stejný den: později splněný je výš
+          });
+        total += items.length;
+
+        const heading = document.createElement("h3");
+        heading.textContent = levelNames[level] + " · " + items.length + "/" + QUESTS[level].length;
+        journalList.appendChild(heading);
+
+        if (items.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "journal-empty";
+          empty.textContent = "Zatím tu nic není.";
+          journalList.appendChild(empty);
+          return;
+        }
+
+        const list = document.createElement("ul");
+        items.forEach(item => {
+          const li = document.createElement("li");
+          const text = document.createElement("span");
+          text.className = "journal-quest";
+          text.textContent = item.quest.text;
+          li.appendChild(text);
+          if (item.date) {
+            const date = document.createElement("span");
+            date.className = "journal-date";
+            date.textContent = formatDate(item.date);
+            li.appendChild(date);
+          }
+          list.appendChild(li);
+        });
+        journalList.appendChild(list);
+      });
+
+      journalEmpty.hidden = total > 0;
+    }
+
+    // Otevření a zavření deníku (zavře i klávesa Esc nebo klepnutí vedle okna)
+    document.getElementById("journal-open").addEventListener("click", () => {
+      renderJournal();
+      journal.showModal();
+      journal.scrollTop = 0;
+    });
+    document.getElementById("journal-close").addEventListener("click", () => journal.close());
+    journal.addEventListener("click", e => {
+      if (e.target === journal) journal.close();
     });
 
     updateProgress();
