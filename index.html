@@ -161,9 +161,15 @@
 
     [hidden] { display: none !important; }
 
-    /* ===== Tlačítko "Hotovo ✓" pod questem ===== */
+    /* ===== Tlačítka pod questem ("Hotovo ✓" a "Zpět") ===== */
+    .card-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+
     .done {
-      align-self: center;
       margin-top: 20px;
       padding: 8px 20px;
       border: 2px solid var(--wine);
@@ -186,6 +192,22 @@
       border-color: transparent;
       cursor: default;
     }
+
+    /* Nenápadné "Zpět" vedle "Splněno 🎉" */
+    .undo {
+      margin-top: 20px;
+      padding: 8px 4px;
+      border: none;
+      background: none;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      opacity: 0.8;
+      cursor: pointer;
+    }
+
+    .undo:hover { opacity: 1; }
 
     /* ===== Nenápadný odkaz "Začít znovu" ===== */
     .reset {
@@ -256,7 +278,10 @@
     <div class="card" id="card">
       <div class="card-level" id="card-level"></div>
       <p class="quest placeholder" id="quest">Tvůj side quest se objeví tady.</p>
-      <button class="done" id="done" hidden>Hotovo ✓</button>
+      <div class="card-actions">
+        <button class="done" id="done" hidden>Hotovo ✓</button>
+        <button class="undo" id="undo" hidden>Zpět</button>
+      </div>
     </div>
 
     <button class="reset" id="reset">Začít znovu</button>
@@ -286,6 +311,7 @@
     let currentLevel = "easy";  // na začátku je vybraná lehká úroveň
     let lastQuestId = "";       // pamatujeme si ID posledního questu, ať se hned neopakuje
     let currentQuest = null;    // quest, který je právě vidět na kartě
+    let lastDone = null;        // quest, u kterého jde ještě kliknout na "Zpět"
     let doneIds = loadDone();   // seznam ID splněných questů, např. ["easy-003", "hard-007"]
 
     const levelButtons = document.querySelectorAll(".level");
@@ -293,6 +319,7 @@
     const cardLevel = document.getElementById("card-level");
     const card = document.getElementById("card");
     const doneButton = document.getElementById("done");
+    const undoButton = document.getElementById("undo");
     const placeholderText = questText.textContent;
 
     // Načte splněné questy z prohlížeče (když nic není nebo je to rozbité, začne s prázdným seznamem)
@@ -339,19 +366,33 @@
       card.classList.add("fade-in");
     }
 
-    // Oslavná zpráva za splněnou úroveň
+    // Oslavná zpráva za splněnou úroveň ("Zpět" zůstane, pokud jde poslední quest vrátit)
     function showLevelDone(level) {
       currentQuest = null;
       doneButton.hidden = true;
+      undoButton.hidden = !lastDone;
       showOnCard(levelNames[level] + " úroveň", levelDoneMessages[level]);
     }
 
-    // Kliknutí na úroveň: označí ji jako vybranou
+    // Vrátí kartu do výchozího stavu ("Tvůj side quest se objeví tady.")
+    function clearCard() {
+      currentQuest = null;
+      lastDone = null;
+      doneButton.hidden = true;
+      undoButton.hidden = true;
+      cardLevel.textContent = "";
+      questText.textContent = placeholderText;
+      questText.classList.add("placeholder");
+    }
+
+    // Kliknutí na úroveň: označí ji jako vybranou a vyčistí kartu
     levelButtons.forEach(button => {
       button.addEventListener("click", () => {
+        if (button.dataset.level === currentLevel) return;  // stejná úroveň: nic neměníme
         levelButtons.forEach(b => b.classList.remove("active"));
         button.classList.add("active");
         currentLevel = button.dataset.level;
+        clearCard();
       });
     });
 
@@ -362,6 +403,10 @@
         questText.textContent = "Nepodařilo se načíst questy. Zkontroluj, že je soubor quests.js ve stejné složce jako index.html.";
         return;
       }
+
+      // Nový quest = předchozí "Hotovo" už nejde vrátit
+      lastDone = null;
+      undoButton.hidden = true;
 
       const list = remainingQuests(currentLevel);
       if (list.length === 0) {
@@ -374,7 +419,7 @@
         quest = list[Math.floor(Math.random() * list.length)];
       } while (list.length > 1 && quest.id === lastQuestId);
       lastQuestId = quest.id;
-      currentQuest = { level: currentLevel, id: quest.id };
+      currentQuest = { level: currentLevel, id: quest.id, text: quest.text };
 
       doneButton.textContent = "Hotovo ✓";
       doneButton.disabled = false;
@@ -394,13 +439,33 @@
       updateProgress();
       doneButton.textContent = "Splněno 🎉";
       doneButton.disabled = true;
+      lastDone = quest;
+      undoButton.hidden = false;
 
       // Byl to poslední quest úrovně? Chvilku ukážeme "Splněno", pak oslavu
       if (remainingQuests(quest.level).length === 0) {
         setTimeout(() => {
-          if (currentQuest === quest) showLevelDone(quest.level);
+          if (currentQuest === quest && doneIds.includes(quest.id)) showLevelDone(quest.level);
         }, 1200);
       }
+    });
+
+    // Kliknutí na "Zpět": odebere ID questu ze splněných a vrátí ho na kartu
+    undoButton.addEventListener("click", () => {
+      if (!lastDone) return;
+      const quest = lastDone;
+
+      doneIds = doneIds.filter(id => id !== quest.id);
+      saveDone();
+      updateProgress();
+
+      lastDone = null;
+      currentQuest = quest;
+      undoButton.hidden = true;
+      doneButton.textContent = "Hotovo ✓";
+      doneButton.disabled = false;
+      doneButton.hidden = false;
+      showOnCard(levelNames[quest.level] + " úroveň", quest.text);
     });
 
     // "Začít znovu": po potvrzení smaže všechny splněné questy
@@ -411,12 +476,8 @@
       saveDone();
       updateProgress();
 
-      currentQuest = null;
       lastQuestId = "";
-      doneButton.hidden = true;
-      cardLevel.textContent = "";
-      questText.textContent = placeholderText;
-      questText.classList.add("placeholder");
+      clearCard();
     });
 
     updateProgress();

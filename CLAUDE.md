@@ -6,6 +6,11 @@ A small web page that gives overwhelmed young women working in corporate a rando
 
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
 - „Hotovo ✓" marks the shown quest as completed. Completed quests are not offered again.
+- „Zpět" next to it undoes that one completion. It stays available until you generate
+  a new quest, switch level or reset (also under the celebration message, if it was
+  the last quest of a level).
+- Switching to a different level clears the card. Clicking the already selected level
+  does nothing.
 - Each level shows its progress, e.g. „Splněno 3/20".
 - When a level is fully completed, a celebration message appears.
 - „Začít znovu" (with a confirmation box) clears all progress.
@@ -80,9 +85,10 @@ writing code.
 - ⭐ **Mobile polish + your own icon**: make it look great on phones. The icon is done
   (`icon.png`, also the tab icon). Still to do: further mobile polish. Maybe a version
   with thicker lines for the tab, if the thin star looks too faint there.
-- **„Zpět" (undo) for „Hotovo ✓"**: a misclicked „Hotovo ✓" can't be undone right now.
-  The only option is „Začít znovu", which deletes everything. Add a „Zpět" button that
-  removes just that quest's ID from the saved list.
+- ~~**„Zpět" (undo) for „Hotovo ✓"**~~ – done (undo for the most recent completion).
+- **List of completed quests**: see everything you've done, per level, and undo any
+  older completion from there (not only the most recent one). Built from the IDs in
+  `sideQuestDone`, with the text looked up in `quests.js`.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
