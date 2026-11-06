@@ -1,0 +1,16 @@
+{
+  "name": "Side Quest Generátor",
+  "short_name": "Side Quests",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#772C3A",
+  "background_color": "#F4E5A7",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
