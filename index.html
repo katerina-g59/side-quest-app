@@ -93,7 +93,10 @@
       transition: background 0.2s, color 0.2s;
     }
 
-    .level:hover { background: var(--pink); }
+    /* Barvy při najetí myší jen na zařízeních s myší (na iPhonu by po klepnutí zůstaly "viset") */
+    @media (hover: hover) {
+      .level:hover { background: var(--pink); }
+    }
 
     .level.active {
       background: var(--wine);
@@ -128,7 +131,9 @@
       transition: background 0.2s;
     }
 
-    .category:hover { background: rgba(232, 197, 195, 0.6); }
+    @media (hover: hover) {
+      .category:hover { background: rgba(232, 197, 195, 0.6); }
+    }
 
     .category.active {
       background: var(--pink);
@@ -151,7 +156,9 @@
       transition: transform 0.15s, background 0.2s;
     }
 
-    .generate:hover { background: var(--wine); }
+    @media (hover: hover) {
+      .generate:hover { background: var(--wine); }
+    }
     .generate:active { transform: scale(0.98); }
 
     /* ===== Karta s questem ===== */
@@ -224,9 +231,11 @@
       transition: background 0.2s, color 0.2s;
     }
 
-    .done:hover:not(:disabled) {
-      background: var(--wine);
-      color: var(--cream);
+    @media (hover: hover) {
+      .done:hover:not(:disabled) {
+        background: var(--wine);
+        color: var(--cream);
+      }
     }
 
     .done:disabled {
@@ -248,7 +257,9 @@
       cursor: pointer;
     }
 
-    .undo:hover { opacity: 1; }
+    @media (hover: hover) {
+      .undo:hover { opacity: 1; }
+    }
 
     /* ===== Tlačítko "Můj deník 📖" ===== */
     .journal-open {
@@ -266,9 +277,11 @@
       transition: background 0.2s, color 0.2s;
     }
 
-    .journal-open:hover {
-      background: var(--wine);
-      color: var(--cream);
+    @media (hover: hover) {
+      .journal-open:hover {
+        background: var(--wine);
+        color: var(--cream);
+      }
     }
 
     /* ===== Okno deníku ===== */
@@ -324,7 +337,9 @@
       cursor: pointer;
     }
 
-    .journal-close:hover { opacity: 1; }
+    @media (hover: hover) {
+      .journal-close:hover { opacity: 1; }
+    }
 
     .journal h3 {
       font-size: 0.75rem;
@@ -387,7 +402,9 @@
       cursor: pointer;
     }
 
-    .reset:hover { opacity: 1; }
+    @media (hover: hover) {
+      .reset:hover { opacity: 1; }
+    }
 
     /* ===== Patička s odkazem na Instagram ===== */
     .footer {
