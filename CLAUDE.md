@@ -5,6 +5,11 @@ A small web page that gives overwhelmed young women working in corporate a rando
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
+- A category filter („Kategorie", „Všechny" by default) narrows the random pick to one
+  category. The card shows the quest's category as a small label. If nothing is left in
+  the chosen level + category, a friendly message says so (two variants: "all done in
+  this category" / "no quests of this category in this level"). Switching category
+  clears the card, like switching level. The choice is not remembered.
 - „Hotovo ✓" marks the shown quest as completed. Completed quests are not offered again.
 - „Zpět" next to it undoes that one completion. It stays available until you generate
   a new quest, switch level or reset (also under the celebration message, if it was
@@ -14,15 +19,22 @@ A small web page that gives overwhelmed young women working in corporate a rando
 - „Můj deník 📖" (under the card) opens the quest journal: a window listing all
   completed quests by level, newest first, with the completion date (e.g. „6. 11. 2026").
   Quests completed before dates were saved have no date and come last. View only.
-- Each level shows its progress, e.g. „Splněno 3/20".
+- Each level shows its progress, e.g. „Splněno 3/20". Progress is per level only, not
+  per category.
 - When a level is fully completed, a celebration message appears.
 - „Začít znovu" (with a confirmation box) clears all progress.
 
 ## Files
 - `index.html` – the whole app: page structure (HTML), look (CSS) and behaviour (JavaScript).
-- `quests.js` – only the list of quests, grouped by level (`easy`, `medium`, `hard`).
-  Each quest is `{ id: "easy-001", text: "..." }`. The file starts with a Czech comment
-  explaining how to add quests.
+- `quests.js` – the categories and the list of quests, grouped by level (`easy`, `medium`,
+  `hard`). The file starts with a Czech comment explaining how to add quests.
+  - `CATEGORIES` maps a short code without diacritics to the display name:
+    `odvaha` „Odvaha 💪", `dobrodruzstvi` „Dobrodružství 🗺️", `komunita` „Komunita 💬",
+    `metime` „Me time 💄", `kreativita` „Kreativita 🎨", `vzdelavani` „Vzdělávání 🎓".
+    The filter buttons are built from this list, so a new category only needs a new line here.
+  - Each quest is `{ id: "easy-001", category: "dobrodruzstvi", text: "..." }`, with exactly
+    one category. A quest with a missing or unknown category still works: no label, and
+    it only appears under „Všechny".
 - `icon.png` – the app icon: a hand-drawn cream star on wine (512×512, made by the
   owner). Used everywhere: browser tab (`rel="icon"`), iPhone home screen
   (`apple-touch-icon`) and Android (from the manifest). The owner replaces it by
@@ -86,8 +98,8 @@ The owner is a beginner. Explain plans in simple words and wait for approval bef
 writing code.
 
 ## Roadmap / ideas
-- **Quest categories**, e.g. movement, creativity, relationships, rest, so you can
-  filter or pick by mood. Add a `category` field to each quest in `quests.js`.
+- ~~**Quest categories**~~ – done (6 categories + filter). Note: Lehká has no Odvaha quest
+  and Těžká has no Vzdělávání quest yet; Komunita is thin in Lehká and Střední.
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
 - ⭐ **Mobile polish + your own icon**: make it look great on phones. The icon is done
   (`icon.png`, also the tab icon). Still to do: further mobile polish. Maybe a version
