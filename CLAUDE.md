@@ -98,8 +98,8 @@ The owner is a beginner. Explain plans in simple words and wait for approval bef
 writing code.
 
 ## Roadmap / ideas
-- ~~**Quest categories**~~ – done (6 categories + filter). Note: Lehká has no Odvaha quest
-  and Těžká has no Vzdělávání quest yet; Komunita is thin in Lehká and Střední.
+- ~~**Quest categories**~~ – done (6 categories + filter). Every level has at least
+  4 quests in every category (96 quests in total, Nov 2026).
 - ~~**Putting the app online with GitHub Pages**~~ – done, see "Online (GitHub)" above.
 - ⭐ **Mobile polish + your own icon**: make it look great on phones. The icon is done
   (`icon.png`, also the tab icon). Still to do: further mobile polish. Maybe a version
