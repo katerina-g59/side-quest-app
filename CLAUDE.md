@@ -140,6 +140,10 @@ writing code.
   with thicker lines for the tab, if the thin star looks too faint there.
 - ~~**„Zpět" (undo) for „Hotovo ✓"**~~ – done (undo for the most recent completion).
 - ~~**List of completed quests**~~ – done as „Můj deník 📖" (view only, with dates).
+- **Budget filter**: filter quests by how much they cost (e.g. free / cheap / pricier).
+  Each quest would need a budget value in the Supabase table.
+- **Hide filters under one button**: put all filtering options (categories, and later
+  budget) behind a single button, so the main screen isn't crowded.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
