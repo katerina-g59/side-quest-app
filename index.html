@@ -458,7 +458,7 @@
     </div>
 
     <div class="label">Kategorie</div>
-    <!-- Tlačítka kategorií se doplní samy podle CATEGORIES v quests.js -->
+    <!-- Tlačítka kategorií se doplní samy podle CATEGORIES níže ve skriptu -->
     <div class="categories" id="categories"></div>
 
     <button class="generate" id="generate">Dej mi side quest ✨</button>
@@ -495,10 +495,32 @@
     </div>
   </dialog>
 
-  <!-- Seznam questů je v samostatném souboru quests.js (musí být ve stejné složce) -->
-  <script src="quests.js"></script>
-
   <script>
+    // ===== Supabase: odtud se načítají questy =====
+    // Veřejný (publishable) klíč smí být vidět – databáze mu dovolí questy jen číst.
+    // Tajný (secret) klíč sem NIKDY nepatří.
+    const SUPABASE_URL = "https://rrcclzjcbupgshdsskgm.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_H2RVY0ok7YHztB0DcaAeIw_jQpn5DwT";
+
+    // Kategorie: krátký kód (stejný jako sloupec "category" v databázi) → název na tlačítku a štítku.
+    // Nová kategorie = nový řádek tady, tlačítko filtru se přidá samo.
+    const CATEGORIES = {
+      odvaha: "Odvaha 💪",
+      dobrodruzstvi: "Dobrodružství 🗺️",
+      komunita: "Komunita 💬",
+      metime: "Me time 💄",
+      kreativita: "Kreativita 🎨",
+      vzdelavani: "Vzdělávání 🎓"
+    };
+
+    // Questy po úrovních: { easy: [{ id, category, text }, ...], medium: [...], hard: [...] }
+    // Dokud se nenačtou ze Supabase, je to undefined.
+    let QUESTS;
+    let questsStatus = "loading";   // "loading" = načítá se, "ready" = hotovo, "error" = nepovedlo se
+
+    const loadingText = "Načítám questy… ✨";
+    const loadErrorText = "Questy se teď nepodařilo načíst 😕 Zkontroluj připojení k internetu a klikni na „Dej mi side quest ✨“ – zkusím to znovu.";
+
     const levelNames = { easy: "Lehká", medium: "Střední", hard: "Těžká" };
 
     // Zpráva, když je celá úroveň splněná
@@ -623,7 +645,8 @@
         : "V této úrovni zatím žádný quest z kategorie " + name + " není. Zkus jinou kategorii ✨");
     }
 
-    // Vrátí kartu do výchozího stavu ("Tvůj side quest se objeví tady.")
+    // Vrátí kartu do výchozího stavu ("Tvůj side quest se objeví tady.",
+    // nebo zprávu o načítání / chybě, dokud questy nejsou načtené)
     function clearCard() {
       currentQuest = null;
       lastDone = null;
@@ -631,8 +654,42 @@
       undoButton.hidden = true;
       cardCategory.hidden = true;
       cardLevel.textContent = "";
-      questText.textContent = placeholderText;
+      questText.textContent =
+        questsStatus === "ready" ? placeholderText :
+        questsStatus === "loading" ? loadingText : loadErrorText;
       questText.classList.add("placeholder");
+    }
+
+    // Načte questy ze Supabase (jen čtení). Když to nevyjde do 10 sekund nebo vůbec,
+    // ukáže přátelskou zprávu. Splněné questy v prohlížeči se tím nikdy nemění.
+    async function loadQuests() {
+      questsStatus = "loading";
+      clearCard();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(
+          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,text&order=id",
+          { headers: { apikey: SUPABASE_KEY }, signal: controller.signal }
+        );
+        if (!response.ok) throw new Error("Supabase odpověděl " + response.status);
+        const rows = await response.json();
+        if (!Array.isArray(rows) || rows.length === 0) throw new Error("Žádné questy");
+
+        // Roztřídíme řádky z databáze do stejného tvaru, jaký měl dřív quests.js
+        const loaded = { easy: [], medium: [], hard: [] };
+        rows.forEach(row => {
+          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, text: row.text });
+        });
+        QUESTS = loaded;
+        questsStatus = "ready";
+        updateProgress();
+      } catch (e) {
+        questsStatus = "error";
+      } finally {
+        clearTimeout(timer);
+      }
+      clearCard();
     }
 
     // Kliknutí na úroveň: označí ji jako vybranou a vyčistí kartu
@@ -646,9 +703,9 @@
       });
     });
 
-    // Tlačítka kategorií: "Všechny" + všechny kategorie z quests.js
+    // Tlačítka kategorií: "Všechny" + všechny kategorie z CATEGORIES
     const categoriesBox = document.getElementById("categories");
-    const categoryCodes = ["all"].concat(typeof CATEGORIES === "undefined" ? [] : Object.keys(CATEGORIES));
+    const categoryCodes = ["all"].concat(Object.keys(CATEGORIES));
     categoryCodes.forEach(code => {
       const button = document.createElement("button");
       button.className = "category" + (code === currentCategory ? " active" : "");
@@ -666,9 +723,9 @@
 
     // Kliknutí na hlavní tlačítko: vybere náhodný nesplněný quest
     document.getElementById("generate").addEventListener("click", () => {
-      // Když se soubor quests.js nenačetl, řekneme to místo tichého selhání
-      if (typeof QUESTS === "undefined") {
-        questText.textContent = "Nepodařilo se načíst questy. Zkontroluj, že je soubor quests.js ve stejné složce jako index.html.";
+      // Questy ještě nejsou načtené: když se právě načítají, počkáme; po chybě to zkusíme znovu
+      if (questsStatus !== "ready") {
+        if (questsStatus === "error") loadQuests();
         return;
       }
 
@@ -765,9 +822,14 @@
     // Postaví seznam splněných questů po úrovních (nejnovější nahoře, bez data na konci)
     function renderJournal() {
       journalList.innerHTML = "";
-      if (typeof QUESTS === "undefined") {
+      if (questsStatus !== "ready") {
         journalEmpty.hidden = true;
-        journalList.textContent = "Nepodařilo se načíst questy.";
+        const message = document.createElement("p");
+        message.className = "journal-empty journal-empty-all";
+        message.textContent = questsStatus === "loading"
+          ? "Načítám questy… ✨ Za chvilku to zkus znovu."
+          : "Deník se ukáže, až se načtou questy 😕 Zkontroluj připojení k internetu a zkus to znovu.";
+        journalList.appendChild(message);
         return;
       }
 
@@ -830,7 +892,8 @@
       if (e.target === journal) journal.close();
     });
 
-    updateProgress();
+    // Hned po otevření stránky načteme questy ze Supabase
+    loadQuests();
   </script>
 </body>
 </html>

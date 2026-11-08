@@ -1,4 +1,10 @@
-// ===== Seznam všech side questů =====
+// ===== ZÁLOHA – appka tento soubor už NEPOUŽÍVÁ =====
+// Od listopadu 2026 se questy načítají z databáze Supabase (tabulka "quests").
+// Změny v tomto souboru se v appce neprojeví. Nový quest nebo opravu textu
+// udělej v Supabase → Table Editor → quests (pravidla pro ID platí stejně).
+// Kategorie (CATEGORIES) jsou teď přímo v index.html.
+//
+// ===== Seznam všech side questů (stav při přesunu do Supabase) =====
 //
 // Jak přidat nový quest:
 //   1. Zkopíruj poslední řádek v dané úrovni a vlož ho pod něj.
@@ -18,7 +24,6 @@
 //   - Quest bez kategorie (nebo s překlepem v kódu) funguje dál, jen nemá štítek
 //     a ukáže se jen pod „Všechny".
 //
-// Tento soubor musí ležet ve stejné složce jako index.html.
 
 const CATEGORIES = {
   odvaha: "Odvaha 💪",

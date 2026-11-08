@@ -23,18 +23,26 @@ A small web page that gives overwhelmed young women working in corporate a rando
   per category.
 - When a level is fully completed, a celebration message appears.
 - „Začít znovu" (with a confirmation box) clears all progress.
+- Quests are loaded from Supabase when the page opens (card shows „Načítám questy… ✨").
+  If that fails (offline, Supabase down, 10 s timeout, empty answer), the card shows a
+  friendly Czech message and clicking „Dej mi side quest ✨" tries again. The deník shows
+  a short message instead of the list. Saved progress is never touched by this.
 
 ## Files
 - `index.html` – the whole app: page structure (HTML), look (CSS) and behaviour (JavaScript).
-- `quests.js` – the categories and the list of quests, grouped by level (`easy`, `medium`,
-  `hard`). The file starts with a Czech comment explaining how to add quests.
+  At the top of the script:
+  - `SUPABASE_URL` / `SUPABASE_KEY` – the project URL and the public (publishable) key.
   - `CATEGORIES` maps a short code without diacritics to the display name:
     `odvaha` „Odvaha 💪", `dobrodruzstvi` „Dobrodružství 🗺️", `komunita` „Komunita 💬",
     `metime` „Me time 💄", `kreativita` „Kreativita 🎨", `vzdelavani` „Vzdělávání 🎓".
     The filter buttons are built from this list, so a new category only needs a new line here.
-  - Each quest is `{ id: "easy-001", category: "dobrodruzstvi", text: "..." }`, with exactly
-    one category. A quest with a missing or unknown category still works: no label, and
-    it only appears under „Všechny".
+  - `loadQuests()` fetches the quests and sorts them into `QUESTS` =
+    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, text }`, the same
+    shape `quests.js` used to have, so the rest of the app works on that.
+- `supabase/setup.sql` – one-time database setup (table, read-only security, the original
+  96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
+- `quests.js` – **backup only, not loaded by the app** (state at the move to Supabase,
+  Nov 2026). Changes to it do nothing in the app.
 - `icon.png` – the app icon: a hand-drawn cream star on wine (512×512, made by the
   owner). Used everywhere: browser tab (`rel="icon"`), iPhone home screen
   (`apple-touch-icon`) and Android (from the manifest). The owner replaces it by
@@ -43,7 +51,28 @@ A small web page that gives overwhelmed young women working in corporate a rando
   `display: standalone`, so Android opens the home-screen app without an address bar
   (iOS does that by itself). Ignored when the app is opened from a file.
 
-`index.html` and `quests.js` must stay in the same folder. No frameworks, no build step, nothing to install.
+No frameworks, no build step, nothing to install. Supabase is called with a plain
+`fetch` (no Supabase library).
+
+## Supabase (where the quests live)
+- Project URL: https://rrcclzjcbupgshdsskgm.supabase.co
+- Table `public.quests`: `id` (text, primary key, must match `easy|medium|hard-000`),
+  `level` (`easy` / `medium` / `hard`), `category` (a `CATEGORIES` code; may be empty or
+  unknown – then no label, and it only appears under „Všechny"), `text`.
+- Each quest has exactly one category.
+- **Adding or fixing a quest:** Supabase → Table Editor → `quests` → Insert row (or edit
+  the text). Same ID rules as below. Feminine verb forms. The app picks it up on reload.
+- **Security (do not loosen):**
+  - The project has "Automatically expose new tables" OFF and automatic RLS ON.
+  - On `quests`: RLS is on, `anon` has **only** `GRANT SELECT`, and there is one policy
+    „Kdokoli může číst questy" (`for select to anon using (true)`). No insert/update/delete
+    grants or policies, for `anon` or `authenticated`.
+  - The publishable key (`sb_publishable_…`) is public by design (it's in the code and on
+    GitHub); the rules above are what protect the data. Checked Nov 2026: with this key,
+    reading works, while insert, update, upsert and delete get `401 permission denied`.
+  - **Never put the secret key (`sb_secret_…` / service_role) in the code or the repo.**
+- A new table must get its grants and policies written explicitly in SQL (nothing is
+  exposed automatically).
 
 ## Online (GitHub)
 - Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)
@@ -55,8 +84,8 @@ A small web page that gives overwhelmed young women working in corporate a rando
 
 ## Important rules
 1. **Must work by double-clicking `index.html` (no server).**
-   - The browser blocks `fetch()` of local files, so quests live in a `.js` file loaded
-     with `<script src="quests.js">`, not in `.json`/`.txt`.
+   - It needs internet, though, to load the quests from Supabase (`fetch` to an https
+     address works from `file://`; the browser only blocks `fetch` of *local* files).
    - Don't add anything that needs a server, a build tool or npm.
 2. **Every quest has a permanent, unique ID.**
    - Format: level + 3-digit number: `easy-001`, `medium-042`, `hard-120`.
@@ -88,10 +117,15 @@ A small web page that gives overwhelmed young women working in corporate a rando
 
 ## How to test
 - Open `index.html` straight from disk (`file:///…`), the way the user does.
-- Note: the built-in browser pane turns local files into a snapshot that can't load
-  `quests.js`. Test with real Edge/Chrome instead, e.g. headless Edge
-  (`msedge --headless=new --dump-dom` or `--screenshot`) on a copy of the files in a
-  temporary folder.
+- Note: the built-in browser pane turns local files into a snapshot, so test with real
+  Edge/Chrome instead, e.g. headless Edge (`msedge --headless=new --dump-dom` or
+  `--screenshot`) on a copy of the files in a temporary folder.
+- After changes, check:
+  - quests load: 96 at the move, and the progress counts are right
+  - filter, Hotovo / Zpět and deník work
+  - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
+- After any database change, recheck with the publishable key (e.g. `curl`) that
+  insert / update / delete are still refused.
 
 ## Working with the user
 The owner is a beginner. Explain plans in simple words and wait for approval before
