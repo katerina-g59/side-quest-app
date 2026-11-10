@@ -58,10 +58,19 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - Project URL: https://rrcclzjcbupgshdsskgm.supabase.co
 - Table `public.quests`: `id` (text, primary key, must match `easy|medium|hard-000`),
   `level` (`easy` / `medium` / `hard`), `category` (a `CATEGORIES` code; may be empty or
-  unknown – then no label, and it only appears under „Všechny"), `text`.
+  unknown – then no label, and it only appears under „Všechny"), `text`, `budget`.
 - Each quest has exactly one category.
+- `budget` is required (NOT NULL) and only allows 3 codes (constraint `quests_budget_check`):
+  `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸", `vicnez500` „Víc než 500 Kč 💰".
+  The display names are for the future budget filter. The app doesn't use budget yet
+  (it only selects `id, level, category, text`).
+- Nov 2026: 97 quests (66 zdarma / 25 do500 / 6 vicnez500). `medium-032` has the same
+  text as `easy-022` (kept on purpose unless the owner says otherwise).
+- SQL files in `supabase/`, run once in the SQL Editor, in this order:
+  `setup.sql` (table, security, first 96 quests) → `add-budget.sql` (budget column +
+  allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL). All are safe to re-run.
 - **Adding or fixing a quest:** Supabase → Table Editor → `quests` → Insert row (or edit
-  the text). Same ID rules as below. Feminine verb forms. The app picks it up on reload.
+  the text). Fill in a budget too. Same ID rules as below. Feminine verb forms. The app picks it up on reload.
 - **Security (do not loosen):**
   - The project has "Automatically expose new tables" OFF and automatic RLS ON.
   - On `quests`: RLS is on, `anon` has **only** `GRANT SELECT`, and there is one policy
@@ -121,7 +130,7 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   Edge/Chrome instead, e.g. headless Edge (`msedge --headless=new --dump-dom` or
   `--screenshot`) on a copy of the files in a temporary folder.
 - After changes, check:
-  - quests load: 96 at the move, and the progress counts are right
+  - quests load (97 in Nov 2026), and the progress counts are right
   - filter, Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
 - After any database change, recheck with the publishable key (e.g. `curl`) that
@@ -140,8 +149,9 @@ writing code.
   with thicker lines for the tab, if the thin star looks too faint there.
 - ~~**„Zpět" (undo) for „Hotovo ✓"**~~ – done (undo for the most recent completion).
 - ~~**List of completed quests**~~ – done as „Můj deník 📖" (view only, with dates).
-- **Budget filter**: filter quests by how much they cost (e.g. free / cheap / pricier).
-  Each quest would need a budget value in the Supabase table.
+- **Budget filter**: filter quests by how much they cost. Data part done (Nov 2026):
+  every quest has a `budget` in Supabase (see the Supabase section). Still to do: the
+  filter and budget label in the app.
 - **Hide filters under one button**: put all filtering options (categories, and later
   budget) behind a single button, so the main screen isn't crowded.
 - **Syncing progress across devices (later)**, so the phone and the computer know
