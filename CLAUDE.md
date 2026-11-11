@@ -5,11 +5,24 @@ A small web page that gives overwhelmed young women working in corporate a rando
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
-- A category filter („Kategorie", „Všechny" by default) narrows the random pick to one
-  category. The card shows the quest's category as a small label. If nothing is left in
-  the chosen level + category, a friendly message says so (two variants: "all done in
-  this category" / "no quests of this category in this level"). Switching category
-  clears the card, like switching level. The choice is not remembered.
+- **Filters:** a „Filtry" button under the level buttons opens a popup (a `<dialog>`
+  like the deník; closes with the round ✕ in the corner, a tap outside, or Esc).
+  - Two sections, one option each: „Kategorie" („Všechny" + `CATEGORIES`) and „Budget"
+    („Všechny" + `BUDGETS`). Both start on „Všechny".
+  - A click applies the filter immediately; the popup stays open. Clicking the option
+    that's already selected does nothing.
+  - „Zrušit filtry" sets both back to „Všechny" (faded and inactive when nothing is set).
+  - On the main screen, each active filter shows as a pink tag next to „Filtry", e.g.
+    „Odvaha 💪 ✕". Tapping the whole tag resets that section to „Všechny".
+  - Any filter change clears the card, like switching level (this also ends „Zpět").
+  - Filters are not remembered: the app always starts on „Všechny / Všechny".
+  - The random pick uses level + category + budget. If nothing uncompleted matches, a
+    friendly message names the filters and suggests removing one. Two variants:
+    "all matching quests done" / "no quest matches these filters in this level".
+    A fully completed level still shows its celebration first.
+  - Progress („Splněno X/Y"), the celebration and the deník ignore filters.
+- The card shows the quest's category and budget as two small labels (e.g. „Odvaha 💪"
+  „Zdarma 🆓"); an unknown code just has no label.
 - „Hotovo ✓" marks the shown quest as completed. Completed quests are not offered again.
 - „Zpět" next to it undoes that one completion. It stays available until you generate
   a new quest, switch level or reset (also under the celebration message, if it was
@@ -36,9 +49,12 @@ A small web page that gives overwhelmed young women working in corporate a rando
     `odvaha` „Odvaha 💪", `dobrodruzstvi` „Dobrodružství 🗺️", `komunita` „Komunita 💬",
     `metime` „Me time 💄", `kreativita` „Kreativita 🎨", `vzdelavani` „Vzdělávání 🎓".
     The filter buttons are built from this list, so a new category only needs a new line here.
+  - `BUDGETS` does the same for budget: `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸",
+    `vicnez500` „Víc než 500 Kč 💰".
   - `loadQuests()` fetches the quests and sorts them into `QUESTS` =
-    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, text }`, the same
-    shape `quests.js` used to have, so the rest of the app works on that.
+    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, budget, text }`.
+  - Filter state: `currentCategory` / `currentBudget` (`"all"` = Všechny);
+    `matchesFilters(quest)` decides what can be picked.
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `quests.js` – **backup only, not loaded by the app** (state at the move to Supabase,
@@ -62,10 +78,11 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - Each quest has exactly one category.
 - `budget` is required (NOT NULL) and only allows 3 codes (constraint `quests_budget_check`):
   `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸", `vicnez500` „Víc než 500 Kč 💰".
-  The display names are for the future budget filter. The app doesn't use budget yet
-  (it only selects `id, level, category, text`).
-- Nov 2026: 97 quests (66 zdarma / 25 do500 / 6 vicnez500). `medium-032` has the same
-  text as `easy-022` (kept on purpose unless the owner says otherwise).
+  The display names live in `BUDGETS` in `index.html` (used by the Budget filter and
+  the card label). The app selects `id, level, category, budget, text`.
+- Nov 2026: 96 quests (easy 34 / medium 31 / hard 31). The owner deleted `medium-032`
+  (a duplicate of `easy-022`), so that ID must never be used again. `fill-budget.sql`
+  still lists it; re-running it is harmless (it just matches nothing).
 - SQL files in `supabase/`, run once in the SQL Editor, in this order:
   `setup.sql` (table, security, first 96 quests) → `add-budget.sql` (budget column +
   allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL). All are safe to re-run.
@@ -130,8 +147,9 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   Edge/Chrome instead, e.g. headless Edge (`msedge --headless=new --dump-dom` or
   `--screenshot`) on a copy of the files in a temporary folder.
 - After changes, check:
-  - quests load (97 in Nov 2026), and the progress counts are right
-  - filter, Hotovo / Zpět and deník work
+  - quests load (96 in Nov 2026, all with a valid budget), and the progress counts are right
+  - Filtry popup (open/close, both sections, tags, Zrušit filtry, both "nothing matches"
+    messages), Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
 - After any database change, recheck with the publishable key (e.g. `curl`) that
   insert / update / delete are still refused.
@@ -149,11 +167,10 @@ writing code.
   with thicker lines for the tab, if the thin star looks too faint there.
 - ~~**„Zpět" (undo) for „Hotovo ✓"**~~ – done (undo for the most recent completion).
 - ~~**List of completed quests**~~ – done as „Můj deník 📖" (view only, with dates).
-- **Budget filter**: filter quests by how much they cost. Data part done (Nov 2026):
-  every quest has a `budget` in Supabase (see the Supabase section). Still to do: the
-  filter and budget label in the app.
-- **Hide filters under one button**: put all filtering options (categories, and later
-  budget) behind a single button, so the main screen isn't crowded.
+- ~~**Budget filter**~~ – done (Nov 2026): `budget` in Supabase, Budget section in the
+  Filtry popup, budget label on the card.
+- ~~**Hide filters under one button**~~ – done as the „Filtry" popup with tags.
+- **Multi-select in filters** (e.g. Odvaha + Komunita at once).
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.

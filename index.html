@@ -109,17 +109,70 @@
       font-weight: 500;
     }
 
-    /* ===== Filtr kategorií ===== */
-    .categories {
+    /* ===== Tlačítko "Filtry" a štítky zapnutých filtrů ===== */
+    .filter-bar {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
+      align-items: center;
       gap: 8px;
       margin-bottom: 24px;
     }
 
-    .category {
+    .filters-open {
+      min-height: 44px;
+      padding: 8px 22px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    @media (hover: hover) {
+      .filters-open:hover {
+        background: var(--wine);
+        color: var(--cream);
+      }
+    }
+
+    /* Štítek zapnutého filtru, např. "Odvaha 💪 ✕" – klepnutí kamkoli na něj filtr zruší */
+    .filter-tag {
+      min-height: 36px;
       padding: 6px 12px;
+      border: 1.5px solid var(--wine);
+      border-radius: 999px;
+      background: var(--pink);
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .filter-tag-x {
+      margin-left: 4px;
+      opacity: 0.7;
+    }
+
+    @media (hover: hover) {
+      .filter-tag:hover .filter-tag-x { opacity: 1; }
+    }
+
+    /* ===== Možnosti filtrů v okně "Filtry" ===== */
+    .filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .category {
+      min-height: 40px;
+      padding: 6px 14px;
       border: 1.5px solid var(--wine);
       border-radius: 999px;
       background: transparent;
@@ -183,10 +236,16 @@
       margin-bottom: 12px;
     }
 
-    /* Štítek kategorie na kartě, např. "Me time 💄" */
-    .card-category {
-      align-self: center;
+    /* Štítky kategorie a budgetu na kartě, např. "Me time 💄" "Zdarma 🆓" */
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
       margin-bottom: 14px;
+    }
+
+    .card-tag {
       padding: 4px 12px;
       border-radius: 999px;
       background: var(--cream);
@@ -389,6 +448,58 @@
 
     .journal-empty-all { margin: 12px 0 0; }
 
+    /* ===== Okno "Filtry" (vzhled přebírá od okna deníku) ===== */
+    .filters { width: min(480px, calc(100% - 32px)); }
+
+    /* Kulaté ✕ v rohu okna */
+    .icon-close {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .icon-close:hover { background: var(--pink); }
+    }
+
+    .filters h3 { margin-top: 16px; }
+
+    .filters-reset {
+      display: block;
+      margin: 28px auto 4px;
+      min-height: 44px;
+      padding: 8px 22px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, opacity 0.2s;
+    }
+
+    @media (hover: hover) {
+      .filters-reset:hover:not(:disabled) {
+        background: var(--wine);
+        color: var(--cream);
+      }
+    }
+
+    /* Když není co rušit, tlačítko je vybledlé */
+    .filters-reset:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
     /* ===== Nenápadný odkaz "Začít znovu" ===== */
     .reset {
       margin-top: 28px;
@@ -433,6 +544,8 @@
       .level { font-size: 0.85rem; padding: 10px 4px; }
       .journal { width: calc(100% - 24px); max-height: calc(100% - 24px); }
       .journal-inner { padding: 0 16px 16px; }
+      .category { min-height: 44px; }
+      .filter-tag { min-height: 40px; }
     }
   </style>
 </head>
@@ -457,15 +570,19 @@
       </div>
     </div>
 
-    <div class="label">Kategorie</div>
-    <!-- Tlačítka kategorií se doplní samy podle CATEGORIES níže ve skriptu -->
-    <div class="categories" id="categories"></div>
+    <!-- Tlačítko "Filtry" + štítky zapnutých filtrů (doplní je skript) -->
+    <div class="filter-bar" id="filter-bar">
+      <button class="filters-open" id="filters-open">Filtry</button>
+    </div>
 
     <button class="generate" id="generate">Dej mi side quest ✨</button>
 
     <div class="card" id="card">
       <div class="card-level" id="card-level"></div>
-      <span class="card-category" id="card-category" hidden></span>
+      <div class="card-tags" id="card-tags" hidden>
+        <span class="card-tag" id="card-category"></span>
+        <span class="card-tag" id="card-budget"></span>
+      </div>
       <p class="quest placeholder" id="quest">Tvůj side quest se objeví tady.</p>
       <div class="card-actions">
         <button class="done" id="done" hidden>Hotovo ✓</button>
@@ -495,6 +612,21 @@
     </div>
   </dialog>
 
+  <!-- Okno "Filtry": kategorie a budget (možnosti doplní skript) -->
+  <dialog class="journal filters" id="filters" aria-labelledby="filters-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="filters-title" tabindex="-1" autofocus>Filtry</h2>
+        <button class="icon-close" id="filters-close" aria-label="Zavřít">✕</button>
+      </div>
+      <h3>Kategorie</h3>
+      <div class="filter-options" id="category-options"></div>
+      <h3>Budget</h3>
+      <div class="filter-options" id="budget-options"></div>
+      <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
+    </div>
+  </dialog>
+
   <script>
     // ===== Supabase: odtud se načítají questy =====
     // Veřejný (publishable) klíč smí být vidět – databáze mu dovolí questy jen číst.
@@ -513,7 +645,14 @@
       vzdelavani: "Vzdělávání 🎓"
     };
 
-    // Questy po úrovních: { easy: [{ id, category, text }, ...], medium: [...], hard: [...] }
+    // Budget: kód (stejný jako sloupec "budget" v databázi) → název na tlačítku a štítku.
+    const BUDGETS = {
+      zdarma: "Zdarma 🆓",
+      do500: "Do 500 Kč 💸",
+      vicnez500: "Víc než 500 Kč 💰"
+    };
+
+    // Questy po úrovních: { easy: [{ id, category, budget, text }, ...], medium: [...], hard: [...] }
     // Dokud se nenačtou ze Supabase, je to undefined.
     let QUESTS;
     let questsStatus = "loading";   // "loading" = načítá se, "ready" = hotovo, "error" = nepovedlo se
@@ -536,7 +675,8 @@
     const STORAGE_KEY = "sideQuestDone";
 
     let currentLevel = "easy";      // na začátku je vybraná lehká úroveň
-    let currentCategory = "all";    // na začátku jsou vybrané "Všechny" kategorie
+    let currentCategory = "all";    // filtr kategorie, na začátku "Všechny" (nepamatuje se)
+    let currentBudget = "all";      // filtr budgetu, na začátku "Všechny" (nepamatuje se)
     let lastQuestId = "";           // pamatujeme si ID posledního questu, ať se hned neopakuje
     let currentQuest = null;        // quest, který je právě vidět na kartě
     let lastDone = null;            // quest, u kterého jde ještě kliknout na "Zpět"
@@ -546,7 +686,9 @@
     const levelButtons = document.querySelectorAll(".level");
     const questText = document.getElementById("quest");
     const cardLevel = document.getElementById("card-level");
+    const cardTags = document.getElementById("card-tags");
     const cardCategory = document.getElementById("card-category");
+    const cardBudget = document.getElementById("card-budget");
     const card = document.getElementById("card");
     const doneButton = document.getElementById("done");
     const undoButton = document.getElementById("undo");
@@ -609,14 +751,22 @@
 
     // Název kategorie podle kódu, např. "metime" → "Me time 💄" (neznámý kód → prázdný text)
     function categoryName(code) {
-      return (typeof CATEGORIES !== "undefined" && CATEGORIES[code]) || "";
+      return CATEGORIES[code] || "";
     }
 
-    // Ukáže text na kartě s jemnou animací (štítek kategorie jen u skutečného questu)
-    function showOnCard(levelText, text, category) {
+    // Název budgetu podle kódu, např. "zdarma" → "Zdarma 🆓" (neznámý kód → prázdný text)
+    function budgetName(code) {
+      return BUDGETS[code] || "";
+    }
+
+    // Ukáže text na kartě s jemnou animací (štítky kategorie a budgetu jen u skutečného questu)
+    function showOnCard(levelText, text, category, budget) {
       cardLevel.textContent = levelText;
       cardCategory.textContent = categoryName(category);
       cardCategory.hidden = !cardCategory.textContent;
+      cardBudget.textContent = budgetName(budget);
+      cardBudget.hidden = !cardBudget.textContent;
+      cardTags.hidden = cardCategory.hidden && cardBudget.hidden;
       questText.textContent = text;
       questText.classList.remove("placeholder");
 
@@ -634,15 +784,29 @@
       showOnCard(levelNames[level] + " úroveň", levelDoneMessages[level]);
     }
 
-    // Zpráva, když ve vybrané kategorii a úrovni nezbývá žádný nesplněný quest
-    function showCategoryEmpty(level, category) {
+    // Odpovídá quest zapnutým filtrům (kategorie + budget)?
+    function matchesFilters(quest) {
+      return (currentCategory === "all" || quest.category === currentCategory)
+          && (currentBudget === "all" || quest.budget === currentBudget);
+    }
+
+    // Názvy zapnutých filtrů pro zprávu, např. "Odvaha 💪 · Zdarma 🆓"
+    function activeFilterNames() {
+      const names = [];
+      if (currentCategory !== "all") names.push(categoryName(currentCategory));
+      if (currentBudget !== "all") names.push(budgetName(currentBudget));
+      return names.join(" · ");
+    }
+
+    // Zpráva, když filtrům v této úrovni neodpovídá žádný nesplněný quest
+    function showFilterEmpty(level) {
       currentQuest = null;
       doneButton.hidden = true;
-      const name = categoryName(category);
-      const exists = QUESTS[level].some(q => q.category === category);
+      const names = activeFilterNames();
+      const exists = QUESTS[level].some(matchesFilters);
       showOnCard(levelNames[level] + " úroveň", exists
-        ? "Všechny questy z kategorie " + name + " v této úrovni máš splněné! 🎉 Zkus jinou kategorii."
-        : "V této úrovni zatím žádný quest z kategorie " + name + " není. Zkus jinou kategorii ✨");
+        ? "Všechny questy pro filtry " + names + " máš v této úrovni splněné! 🎉 Zkus odebrat některý filtr."
+        : "Pro filtry " + names + " tu v této úrovni zatím žádný quest není. Zkus odebrat některý filtr ✨");
     }
 
     // Vrátí kartu do výchozího stavu ("Tvůj side quest se objeví tady.",
@@ -652,7 +816,7 @@
       lastDone = null;
       doneButton.hidden = true;
       undoButton.hidden = true;
-      cardCategory.hidden = true;
+      cardTags.hidden = true;
       cardLevel.textContent = "";
       questText.textContent =
         questsStatus === "ready" ? placeholderText :
@@ -669,7 +833,7 @@
       const timer = setTimeout(() => controller.abort(), 10000);
       try {
         const response = await fetch(
-          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,text&order=id",
+          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,budget,text&order=id",
           { headers: { apikey: SUPABASE_KEY }, signal: controller.signal }
         );
         if (!response.ok) throw new Error("Supabase odpověděl " + response.status);
@@ -679,7 +843,7 @@
         // Roztřídíme řádky z databáze do stejného tvaru, jaký měl dřív quests.js
         const loaded = { easy: [], medium: [], hard: [] };
         rows.forEach(row => {
-          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, text: row.text });
+          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, budget: row.budget, text: row.text });
         });
         QUESTS = loaded;
         questsStatus = "ready";
@@ -703,23 +867,92 @@
       });
     });
 
-    // Tlačítka kategorií: "Všechny" + všechny kategorie z CATEGORIES
-    const categoriesBox = document.getElementById("categories");
-    const categoryCodes = ["all"].concat(Object.keys(CATEGORIES));
-    categoryCodes.forEach(code => {
-      const button = document.createElement("button");
-      button.className = "category" + (code === currentCategory ? " active" : "");
-      button.textContent = code === "all" ? "Všechny" : CATEGORIES[code];
-      // Kliknutí na kategorii: označí ji jako vybranou a vyčistí kartu
-      button.addEventListener("click", () => {
-        if (code === currentCategory) return;  // stejná kategorie: nic neměníme
-        categoriesBox.querySelectorAll(".category").forEach(b => b.classList.remove("active"));
-        button.classList.add("active");
-        currentCategory = code;
-        clearCard();
+    // ===== Filtry (okno "Filtry" + štítky na hlavní obrazovce) =====
+    const filtersDialog = document.getElementById("filters");
+    const filterBar = document.getElementById("filter-bar");
+    const filtersResetButton = document.getElementById("filters-reset");
+
+    // Dvě sekce filtrů. Každá ví, odkud bere možnosti a kde je uložená vybraná hodnota.
+    const filterSections = {
+      category: {
+        names: CATEGORIES,
+        box: document.getElementById("category-options"),
+        get: () => currentCategory,
+        set: code => { currentCategory = code; }
+      },
+      budget: {
+        names: BUDGETS,
+        box: document.getElementById("budget-options"),
+        get: () => currentBudget,
+        set: code => { currentBudget = code; }
+      }
+    };
+
+    // Nastaví filtr jedné sekce ("all" = Všechny). Stejná hodnota: nic se nemění.
+    function setFilter(section, code) {
+      const s = filterSections[section];
+      if (s.get() === code) return;
+      s.set(code);
+      renderFilters();
+      clearCard();
+    }
+
+    // Překreslí vybrané možnosti v okně, štítky na hlavní obrazovce a tlačítko "Zrušit filtry"
+    function renderFilters() {
+      Object.values(filterSections).forEach(s => {
+        s.box.querySelectorAll(".category").forEach(b => b.classList.toggle("active", b.dataset.code === s.get()));
       });
-      categoriesBox.appendChild(button);
+
+      filterBar.querySelectorAll(".filter-tag").forEach(tag => tag.remove());
+      Object.entries(filterSections).forEach(([section, s]) => {
+        if (s.get() === "all") return;
+        const tag = document.createElement("button");
+        tag.className = "filter-tag";
+        tag.setAttribute("aria-label", "Zrušit filtr " + s.names[s.get()]);
+        tag.textContent = s.names[s.get()];
+        const x = document.createElement("span");
+        x.className = "filter-tag-x";
+        x.textContent = "✕";
+        tag.appendChild(x);
+        tag.addEventListener("click", () => setFilter(section, "all"));
+        filterBar.appendChild(tag);
+      });
+
+      filtersResetButton.disabled = currentCategory === "all" && currentBudget === "all";
+    }
+
+    // Tlačítka možností: "Všechny" + všechno ze seznamu (CATEGORIES nebo BUDGETS)
+    Object.entries(filterSections).forEach(([section, s]) => {
+      ["all"].concat(Object.keys(s.names)).forEach(code => {
+        const button = document.createElement("button");
+        button.className = "category";
+        button.dataset.code = code;
+        button.textContent = code === "all" ? "Všechny" : s.names[code];
+        button.addEventListener("click", () => setFilter(section, code));
+        s.box.appendChild(button);
+      });
     });
+
+    // "Zrušit filtry": obě sekce zpátky na "Všechny"
+    filtersResetButton.addEventListener("click", () => {
+      if (currentCategory === "all" && currentBudget === "all") return;
+      currentCategory = "all";
+      currentBudget = "all";
+      renderFilters();
+      clearCard();
+    });
+
+    // Otevření a zavření okna (zavře i ✕, klávesa Esc nebo klepnutí vedle okna)
+    document.getElementById("filters-open").addEventListener("click", () => {
+      filtersDialog.showModal();
+      filtersDialog.scrollTop = 0;
+    });
+    document.getElementById("filters-close").addEventListener("click", () => filtersDialog.close());
+    filtersDialog.addEventListener("click", e => {
+      if (e.target === filtersDialog) filtersDialog.close();
+    });
+
+    renderFilters();
 
     // Kliknutí na hlavní tlačítko: vybere náhodný nesplněný quest
     document.getElementById("generate").addEventListener("click", () => {
@@ -740,10 +973,10 @@
         return;
       }
 
-      // 2. Ve vybrané kategorii nic nezbývá → přátelská zpráva
-      const list = currentCategory === "all" ? remaining : remaining.filter(q => q.category === currentCategory);
+      // 2. Zapnutým filtrům nic nesplněného neodpovídá → přátelská zpráva
+      const list = remaining.filter(matchesFilters);
       if (list.length === 0) {
-        showCategoryEmpty(currentLevel, currentCategory);
+        showFilterEmpty(currentLevel);
         return;
       }
 
@@ -753,12 +986,12 @@
         quest = list[Math.floor(Math.random() * list.length)];
       } while (list.length > 1 && quest.id === lastQuestId);
       lastQuestId = quest.id;
-      currentQuest = { level: currentLevel, id: quest.id, text: quest.text, category: quest.category };
+      currentQuest = { level: currentLevel, id: quest.id, text: quest.text, category: quest.category, budget: quest.budget };
 
       doneButton.textContent = "Hotovo ✓";
       doneButton.disabled = false;
       doneButton.hidden = false;
-      showOnCard(levelNames[currentLevel] + " úroveň", quest.text, quest.category);
+      showOnCard(levelNames[currentLevel] + " úroveň", quest.text, quest.category, quest.budget);
     });
 
     // Kliknutí na "Hotovo ✓": uloží ID questu jako splněné
@@ -799,7 +1032,7 @@
       doneButton.textContent = "Hotovo ✓";
       doneButton.disabled = false;
       doneButton.hidden = false;
-      showOnCard(levelNames[quest.level] + " úroveň", quest.text, quest.category);
+      showOnCard(levelNames[quest.level] + " úroveň", quest.text, quest.category, quest.budget);
     });
 
     // "Začít znovu": po potvrzení smaže všechny splněné questy
