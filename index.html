@@ -485,28 +485,46 @@
 
     .filters h3 { margin-top: 16px; }
 
+    /* Dvě široká tlačítka pod sebou: hlavní "Potvrdit filtry", pod ním "Zrušit filtry" */
+    .filters-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .filters-confirm,
     .filters-reset {
-      display: block;
-      margin: 28px auto 4px;
-      min-height: 44px;
-      padding: 8px 22px;
-      border: 2px solid var(--wine);
+      width: 100%;
+      min-height: 52px;
+      padding: 12px 20px;
+      border: none;
       border-radius: 999px;
-      background: transparent;
-      color: var(--wine);
       font-family: inherit;
-      font-size: 0.9rem;
+      font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s, color 0.2s, opacity 0.2s;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    .filters-confirm {
+      background: var(--wine);
+      color: var(--cream);
+      box-shadow: 0 6px 16px rgba(119, 44, 58, 0.25);
+    }
+
+    .filters-reset {
+      background: var(--pink);
+      color: var(--wine);
     }
 
     @media (hover: hover) {
-      .filters-reset:hover:not(:disabled) {
-        background: var(--wine);
-        color: var(--cream);
-      }
+      .filters-confirm:hover { background: var(--brown); }
+      .filters-reset:hover:not(:disabled) { background: rgba(232, 197, 195, 0.6); }
     }
+
+    .filters-confirm:active,
+    .filters-reset:active:not(:disabled) { transform: scale(0.98); }
 
     /* Když není co rušit, tlačítko je vybledlé */
     .filters-reset:disabled {
@@ -646,7 +664,10 @@
       <div class="filter-options" id="category-options"></div>
       <h3>Budget</h3>
       <div class="filter-options" id="budget-options"></div>
-      <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
+      <div class="filters-actions">
+        <button class="filters-confirm" id="filters-confirm">Potvrdit filtry</button>
+        <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
+      </div>
     </div>
   </dialog>
 
@@ -894,24 +915,34 @@
     const filtersDialog = document.getElementById("filters");
     const filterBar = document.getElementById("filter-bar");
     const filtersResetButton = document.getElementById("filters-reset");
+    const filtersConfirmButton = document.getElementById("filters-confirm");
 
-    // Dvě sekce filtrů. Každá ví, odkud bere možnosti a kde je uložená vybraná hodnota.
+    // Výběr v okně, který ještě není potvrzený. Platí až po "Potvrdit filtry".
+    let draftCategory = "all";
+    let draftBudget = "all";
+
+    // Dvě sekce filtrů. Každá ví, odkud bere možnosti a kde je uložená platná (get/set)
+    // a rozpracovaná (getDraft/setDraft) hodnota.
     const filterSections = {
       category: {
         names: CATEGORIES,
         box: document.getElementById("category-options"),
         get: () => currentCategory,
-        set: code => { currentCategory = code; }
+        set: code => { currentCategory = code; },
+        getDraft: () => draftCategory,
+        setDraft: code => { draftCategory = code; }
       },
       budget: {
         names: BUDGETS,
         box: document.getElementById("budget-options"),
         get: () => currentBudget,
-        set: code => { currentBudget = code; }
+        set: code => { currentBudget = code; },
+        getDraft: () => draftBudget,
+        setDraft: code => { draftBudget = code; }
       }
     };
 
-    // Nastaví filtr jedné sekce ("all" = Všechny). Stejná hodnota: nic se nemění.
+    // Rovnou nastaví platný filtr jedné sekce (používá štítek na hlavní obrazovce).
     function setFilter(section, code) {
       const s = filterSections[section];
       if (s.get() === code) return;
@@ -920,12 +951,16 @@
       clearCard();
     }
 
-    // Překreslí vybrané možnosti v okně, štítky na hlavní obrazovce a tlačítko "Zrušit filtry"
-    function renderFilters() {
+    // Překreslí okno podle rozpracovaného výběru (hlavní obrazovka se nemění)
+    function renderDraft() {
       Object.values(filterSections).forEach(s => {
-        s.box.querySelectorAll(".category").forEach(b => b.classList.toggle("active", b.dataset.code === s.get()));
+        s.box.querySelectorAll(".category").forEach(b => b.classList.toggle("active", b.dataset.code === s.getDraft()));
       });
+      filtersResetButton.disabled = draftCategory === "all" && draftBudget === "all";
+    }
 
+    // Překreslí štítky a ikonu na hlavní obrazovce podle platných filtrů
+    function renderFilters() {
       filterBar.querySelectorAll(".filter-tag").forEach(tag => tag.remove());
       Object.entries(filterSections).forEach(([section, s]) => {
         if (s.get() === "all") return;
@@ -942,7 +977,6 @@
       });
 
       const noFilters = currentCategory === "all" && currentBudget === "all";
-      filtersResetButton.disabled = noFilters;
       filterBar.hidden = noFilters;
       document.getElementById("filters-open").classList.toggle("has-filters", !noFilters);
     }
@@ -954,22 +988,40 @@
         button.className = "category";
         button.dataset.code = code;
         button.textContent = code === "all" ? "Všechny" : s.names[code];
-        button.addEventListener("click", () => setFilter(section, code));
+        // Klepnutí na možnost změní jen výběr v okně, ne hlavní obrazovku
+        button.addEventListener("click", () => {
+          s.setDraft(code);
+          renderDraft();
+        });
         s.box.appendChild(button);
       });
     });
 
-    // "Zrušit filtry": obě sekce zpátky na "Všechny"
+    // "Zrušit filtry": v okně vrátí obě sekce na "Všechny" (platí až po potvrzení)
     filtersResetButton.addEventListener("click", () => {
-      if (currentCategory === "all" && currentBudget === "all") return;
-      currentCategory = "all";
-      currentBudget = "all";
-      renderFilters();
-      clearCard();
+      draftCategory = "all";
+      draftBudget = "all";
+      renderDraft();
     });
 
-    // Otevření a zavření okna (zavře i ✕, klávesa Esc nebo klepnutí vedle okna)
+    // "Potvrdit filtry": uloží výběr, zavře okno a (jen když se něco změnilo) vyčistí kartu
+    filtersConfirmButton.addEventListener("click", () => {
+      const changed = draftCategory !== currentCategory || draftBudget !== currentBudget;
+      currentCategory = draftCategory;
+      currentBudget = draftBudget;
+      filtersDialog.close();
+      if (changed) {
+        renderFilters();
+        clearCard();
+      }
+    });
+
+    // Otevření okna: začíná s filtry, které právě platí. Zavření bez potvrzení
+    // (✕, klávesa Esc nebo klepnutí vedle okna) rozpracovaný výběr zahodí.
     document.getElementById("filters-open").addEventListener("click", () => {
+      draftCategory = currentCategory;
+      draftBudget = currentBudget;
+      renderDraft();
       filtersDialog.showModal();
       filtersDialog.scrollTop = 0;
     });

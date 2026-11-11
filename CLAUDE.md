@@ -12,13 +12,21 @@ A small web page that gives overwhelmed young women working in corporate a rando
   place (Nov 2026) instead of a text button.
   - Two sections, one option each: „Kategorie" („Všechny" + `CATEGORIES`) and „Budget"
     („Všechny" + `BUDGETS`). Both start on „Všechny".
-  - A click applies the filter immediately; the popup stays open. Clicking the option
-    that's already selected does nothing.
-  - „Zrušit filtry" sets both back to „Všechny" (faded and inactive when nothing is set).
+  - **Nothing applies until confirmed.** Tapping an option only changes the selection
+    inside the popup (`draftCategory` / `draftBudget`); the main page doesn't change.
+  - Two full-width buttons at the bottom, stacked: **„Potvrdit filtry"** (primary: wine
+    with cream text) saves the selection, closes the popup and, only if something
+    changed, updates tags/icon and clears the card. **„Zrušit filtry"** (secondary: dusty
+    pink with wine text) only resets the popup's selection to „Všechny / Všechny"; it
+    still needs „Potvrdit filtry" (faded and inactive when already on „Všechny").
+    The owner asked for this (Nov 2026) so a reset button isn't where people expect
+    "confirm".
+  - Closing without confirming (✕, tap outside, Esc) discards the unconfirmed selection;
+    reopening shows the filters that are actually on.
   - On the main screen, each active filter shows as a pink tag in a row under the levels,
     e.g. „Odvaha 💪 ✕" (the row is hidden when no filter is on). Tapping the whole tag
-    resets that section to „Všechny".
-  - Any filter change clears the card, like switching level (this also ends „Zpět").
+    resets that section to „Všechny" right away (no confirmation needed).
+  - Any applied filter change clears the card, like switching level (this also ends „Zpět").
   - Filters are not remembered: the app always starts on „Všechny / Všechny".
   - The random pick uses level + category + budget. If nothing uncompleted matches, a
     friendly message names the filters and suggests removing one. Two variants:
@@ -152,7 +160,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   `--screenshot`) on a copy of the files in a temporary folder.
 - After changes, check:
   - quests load (96 in Nov 2026, all with a valid budget), and the progress counts are right
-  - Filtry popup (open/close, both sections, tags, Zrušit filtry, both "nothing matches"
+  - Filtry popup (options change nothing until „Potvrdit filtry", closing without
+    confirming discards, Zrušit filtry + confirm, tags, both "nothing matches"
     messages), Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
 - After any database change, recheck with the publishable key (e.g. `curl`) that
