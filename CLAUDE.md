@@ -5,15 +5,19 @@ A small web page that gives overwhelmed young women working in corporate a rando
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
-- **Filters:** a „Filtry" button under the level buttons opens a popup (a `<dialog>`
-  like the deník; closes with the round ✕ in the corner, a tap outside, or Esc).
+- **Filters:** a round icon button (sliders icon, inline SVG, wine on cream; label
+  „Filtry" for screen readers) at the end of the Lehká / Střední / Těžká row opens a popup
+  (a `<dialog>` like the deník; closes with the round ✕ in the corner, a tap outside, or
+  Esc). The icon turns dusty pink while any filter is on. The owner chose this look and
+  place (Nov 2026) instead of a text button.
   - Two sections, one option each: „Kategorie" („Všechny" + `CATEGORIES`) and „Budget"
     („Všechny" + `BUDGETS`). Both start on „Všechny".
   - A click applies the filter immediately; the popup stays open. Clicking the option
     that's already selected does nothing.
   - „Zrušit filtry" sets both back to „Všechny" (faded and inactive when nothing is set).
-  - On the main screen, each active filter shows as a pink tag next to „Filtry", e.g.
-    „Odvaha 💪 ✕". Tapping the whole tag resets that section to „Všechny".
+  - On the main screen, each active filter shows as a pink tag in a row under the levels,
+    e.g. „Odvaha 💪 ✕" (the row is hidden when no filter is on). Tapping the whole tag
+    resets that section to „Všechny".
   - Any filter change clears the card, like switching level (this also ends „Zpět").
   - Filters are not remembered: the app always starts on „Všechny / Všechny".
   - The random pick uses level + category + budget. If nothing uncompleted matches, a

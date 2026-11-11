@@ -81,7 +81,8 @@
     }
 
     .level {
-      padding: 12px 8px;
+      height: 48px;
+      padding: 0 8px;
       border: 2px solid var(--wine);
       border-radius: 999px;
       background: transparent;
@@ -109,35 +110,48 @@
       font-weight: 500;
     }
 
-    /* ===== Tlačítko "Filtry" a štítky zapnutých filtrů ===== */
+    /* ===== Ikona filtrů (vedle úrovní) a štítky zapnutých filtrů ===== */
     .filter-bar {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       align-items: center;
       gap: 8px;
-      margin-bottom: 24px;
+      margin: -8px 0 24px;
     }
 
+    /* Kulaté tlačítko s ikonou "posuvníků", stejně vysoké jako tlačítka úrovní */
     .filters-open {
-      min-height: 44px;
-      padding: 8px 22px;
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: 2px solid var(--wine);
-      border-radius: 999px;
+      border-radius: 50%;
       background: transparent;
       color: var(--wine);
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: 600;
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
     }
+
+    .filters-open svg { width: 24px; height: 24px; }
+
+    /* Kolečka "posuvníků" mají barvu pozadí tlačítka, takže čáru přeruší */
+    .filters-open circle { fill: var(--cream); }
+
+    /* Když je zapnutý aspoň jeden filtr, ikona je podbarvená růžově */
+    .filters-open.has-filters { background: var(--pink); }
+    .filters-open.has-filters circle { fill: var(--pink); }
 
     @media (hover: hover) {
       .filters-open:hover {
         background: var(--wine);
         color: var(--cream);
       }
+      .filters-open:hover circle { fill: var(--wine); }
     }
 
     /* Štítek zapnutého filtru, např. "Odvaha 💪 ✕" – klepnutí kamkoli na něj filtr zruší */
@@ -541,7 +555,10 @@
 
     /* Úzké obrazovky (mobil) */
     @media (max-width: 420px) {
-      .level { font-size: 0.85rem; padding: 10px 4px; }
+      .level { font-size: 0.85rem; height: 44px; padding: 0 4px; }
+      .levels { gap: 8px; }
+      .filters-open { width: 44px; height: 44px; }
+      .filters-open svg { width: 22px; height: 22px; }
       .journal { width: calc(100% - 24px); max-height: calc(100% - 24px); }
       .journal-inner { padding: 0 16px 16px; }
       .category { min-height: 44px; }
@@ -568,12 +585,18 @@
         <button class="level" data-level="hard">Těžká</button>
         <span class="progress" data-progress="hard"></span>
       </div>
+      <!-- Ikona filtrů: otevře okno "Filtry" -->
+      <button class="filters-open" id="filters-open" aria-label="Filtry" title="Filtry">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6" /><circle cx="15" cy="6" r="2.2" />
+          <line x1="3" y1="12" x2="21" y2="12" /><circle cx="9" cy="12" r="2.2" />
+          <line x1="3" y1="18" x2="21" y2="18" /><circle cx="14" cy="18" r="2.2" />
+        </svg>
+      </button>
     </div>
 
-    <!-- Tlačítko "Filtry" + štítky zapnutých filtrů (doplní je skript) -->
-    <div class="filter-bar" id="filter-bar">
-      <button class="filters-open" id="filters-open">Filtry</button>
-    </div>
+    <!-- Štítky zapnutých filtrů (doplní je skript; bez filtrů je řádek skrytý) -->
+    <div class="filter-bar" id="filter-bar" hidden></div>
 
     <button class="generate" id="generate">Dej mi side quest ✨</button>
 
@@ -918,7 +941,10 @@
         filterBar.appendChild(tag);
       });
 
-      filtersResetButton.disabled = currentCategory === "all" && currentBudget === "all";
+      const noFilters = currentCategory === "all" && currentBudget === "all";
+      filtersResetButton.disabled = noFilters;
+      filterBar.hidden = noFilters;
+      document.getElementById("filters-open").classList.toggle("has-filters", !noFilters);
     }
 
     // Tlačítka možností: "Všechny" + všechno ze seznamu (CATEGORIES nebo BUDGETS)
