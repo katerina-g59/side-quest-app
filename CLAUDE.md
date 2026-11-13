@@ -61,7 +61,9 @@ A small web page that gives overwhelmed young women working in corporate a rando
     whether it runs from the home screen, and whether it's a local file or the website.
   - Sent with `Prefer: return=minimal` (anon may not read the table, so asking for the
     saved row back would fail). 10 s timeout.
-  - Success: a thank-you message, and the form is cleared. Failure: a friendly error,
+  - Success: a thank-you message (`feedbackThanksTexts`; „Navrhnout quest ✨" has its own,
+    saying she'll be contacted about adding the quest if she filled in her IG, otherwise
+    it's added without her signature), and the form is cleared. Failure: a friendly error,
     and the text stays in the form. Closing the popup also keeps the unsent text.
   - Spam protection: max 1 message per 30 s (time kept in localStorage key
     `sideQuestFeedbackSent`, in try/catch). This is only a check in the browser, not in

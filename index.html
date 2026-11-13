@@ -650,6 +650,7 @@
     }
 
     .feedback-thanks p {
+      white-space: pre-line;  /* "\n" v textu poděkování = nový řádek */
       margin: 8px 0 24px;
       font-family: 'Playfair Display', serif;
       font-size: 1.25rem;
@@ -781,7 +782,7 @@
           <button type="button" class="category" data-type="quest" aria-pressed="false">Navrhnout quest ✨</button>
         </div>
         <p class="feedback-note" id="feedback-device-note" hidden>
-          K nahlášení chyby automaticky přiložím základní info o prohlížeči a zařízení
+          K nahlášení chyby budou automaticky přiloženy informace o prohlížeči a zařízení
           (typ prohlížeče, velikost obrazovky, jazyk). Žádné osobní údaje. 🔒
         </p>
 
@@ -802,7 +803,7 @@
       </form>
 
       <div class="feedback-thanks" id="feedback-thanks" hidden>
-        <p>Děkuju moc, zpráva dorazila! 💌<br>Každé tvé slovo mi pomáhá appku vylepšovat.</p>
+        <p id="feedback-thanks-text"></p>
         <button type="button" class="filters-confirm" id="feedback-done">Zavřít</button>
       </div>
     </div>
@@ -1346,6 +1347,12 @@
     const FEEDBACK_KEY = "sideQuestFeedbackSent";  // čas posledního odeslání (ochrana proti spamu)
     const FEEDBACK_WAIT = 30;                       // sekund mezi dvěma zprávami
 
+    // Poděkování po odeslání (návrh questu má vlastní text)
+    const feedbackThanksTexts = {
+      quest: "Děkuju moc, zpráva dorazila! 💌\nPokud jsi vyplnila IG, budu tě kontaktovat ohledně přidání tebou navrženého questu do aplikace. Pokud ne, bude přidán bez tvého podpisu.",
+      other: "Děkuju moc, zpráva dorazila! 💌\nKaždá zpětná vazba mi pomáhá appku vylepšovat."
+    };
+
     const feedbackDialog = document.getElementById("feedback");
     const feedbackForm = document.getElementById("feedback-form");
     const feedbackThanks = document.getElementById("feedback-thanks");
@@ -1456,6 +1463,8 @@
 
         // Povedlo se: poděkujeme a formulář vyčistíme
         rememberFeedbackTime();
+        document.getElementById("feedback-thanks-text").textContent =
+          feedbackThanksTexts[row.type] || feedbackThanksTexts.other;
         feedbackType = "";
         feedbackMessage.value = "";
         feedbackInstagram.value = "";
