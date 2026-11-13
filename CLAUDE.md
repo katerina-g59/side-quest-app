@@ -10,10 +10,15 @@ A small web page that gives overwhelmed young women working in corporate a rando
   (a `<dialog>` like the deník; closes with the round ✕ in the corner, a tap outside, or
   Esc). The icon turns dusty pink while any filter is on. The owner chose this look and
   place (Nov 2026) instead of a text button.
-  - Two sections, one option each: „Kategorie" („Všechny" + `CATEGORIES`) and „Budget"
-    („Všechny" + `BUDGETS`). Both start on „Všechny".
+  - Two sections, **multi-select** (Nov 2026): „Kategorie" („Všechny" + `CATEGORIES`) and
+    „Budget" („Všechny" + `BUDGETS`). Both start on „Všechny".
+    - Each option is an on/off switch; several can be on (e.g. Odvaha + Komunita).
+    - Tapping „Všechny" turns the others off; tapping any other option turns „Všechny"
+      off; turning off the last option brings back „Všechny".
+    - Look: a selected option is a filled wine pill with cream text and „✓ "; an
+      unselected one is a wine outline. Min 44 px tall. (`aria-pressed` for screen readers.)
   - **Nothing applies until confirmed.** Tapping an option only changes the selection
-    inside the popup (`draftCategory` / `draftBudget`); the main page doesn't change.
+    inside the popup (`draftCategories` / `draftBudgets`); the main page doesn't change.
   - Two full-width buttons at the bottom, stacked: **„Potvrdit filtry"** (primary: wine
     with cream text) saves the selection, closes the popup and, only if something
     changed, updates tags/icon and clears the card. **„Zrušit filtry"** (secondary: dusty
@@ -23,13 +28,17 @@ A small web page that gives overwhelmed young women working in corporate a rando
     "confirm".
   - Closing without confirming (✕, tap outside, Esc) discards the unconfirmed selection;
     reopening shows the filters that are actually on.
-  - On the main screen, each active filter shows as a pink tag in a row under the levels,
-    e.g. „Odvaha 💪 ✕" (the row is hidden when no filter is on). Tapping the whole tag
-    resets that section to „Všechny" right away (no confirmation needed).
+  - On the main screen, every selected option shows as its own pink tag in a row under
+    the levels, e.g. „Odvaha 💪 ✕" „Komunita 💬 ✕" (in list order; the row wraps onto more
+    lines and is hidden when no filter is on). Tapping a tag removes only that option
+    right away (no confirmation needed); removing the last one of a section brings that
+    section back to „Všechny".
   - Any applied filter change clears the card, like switching level (this also ends „Zpět").
   - Filters are not remembered: the app always starts on „Všechny / Všechny".
-  - The random pick uses level + category + budget. If nothing uncompleted matches, a
-    friendly message names the filters and suggests removing one. Two variants:
+  - The random pick uses level + category + budget: a quest matches if its category is
+    ANY of the selected categories AND its budget is ANY of the selected budgets. If
+    nothing uncompleted matches, a friendly message names the filters (e.g. „Odvaha 💪,
+    Komunita 💬 · Zdarma 🆓") and suggests removing one. Two variants:
     "all matching quests done" / "no quest matches these filters in this level".
     A fully completed level still shows its celebration first.
   - Progress („Splněno X/Y"), the celebration and the deník ignore filters.
@@ -85,8 +94,10 @@ A small web page that gives overwhelmed young women working in corporate a rando
     `vicnez500` „Víc než 500 Kč 💰".
   - `loadQuests()` fetches the quests and sorts them into `QUESTS` =
     `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, budget, text }`.
-  - Filter state: `currentCategory` / `currentBudget` (`"all"` = Všechny);
-    `matchesFilters(quest)` decides what can be picked.
+  - Filter state: `currentCategories` / `currentBudgets`, lists of codes in
+    `CATEGORIES` / `BUDGETS` order (empty list = Všechny); `matchesFilters(quest)` decides
+    what can be picked, `toggleDraft()` holds the „Všechny" rules, `removeFilter()` is
+    used by the tags.
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `quests.js` – **backup only, not loaded by the app** (state at the move to Supabase,
@@ -225,7 +236,8 @@ writing code.
 - ~~**Feedback form**~~ – done (Nov 2026) as „Napiš mi 💌", see the `feedback` table above.
 - **Email notification when new feedback arrives** (e.g. a Supabase Database Webhook or
   Edge Function that emails the owner on each new `feedback` row).
-- **Multi-select in filters** (e.g. Odvaha + Komunita at once).
+- ~~**Multi-select in filters**~~ – done (Nov 2026): several options per section, one tag
+  per option.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.

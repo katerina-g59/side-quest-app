@@ -156,6 +156,8 @@
 
     /* Štítek zapnutého filtru, např. "Odvaha 💪 ✕" – klepnutí kamkoli na něj filtr zruší */
     .filter-tag {
+      max-width: 100%;            /* dlouhý štítek nikdy nepřeteče přes šířku telefonu */
+      overflow-wrap: anywhere;
       min-height: 36px;
       padding: 6px 12px;
       border: 1.5px solid var(--wine);
@@ -185,7 +187,7 @@
     }
 
     .category {
-      min-height: 40px;
+      min-height: 44px;
       padding: 6px 14px;
       border: 1.5px solid var(--wine);
       border-radius: 999px;
@@ -202,9 +204,20 @@
       .category:hover { background: rgba(232, 197, 195, 0.6); }
     }
 
+    /* Vybraná možnost: plná vínová "pilulka" s ✓ (nevybraná je jen obrys) */
     .category.active {
-      background: var(--pink);
+      background: var(--wine);
+      color: var(--cream);
       font-weight: 600;
+    }
+
+    #category-options .category.active::before,
+    #budget-options .category.active::before {
+      content: "✓ ";
+    }
+
+    @media (hover: hover) {
+      .category.active:hover { background: var(--brown); }
     }
 
     /* ===== Hlavní tlačítko ===== */
@@ -857,8 +870,8 @@
     const STORAGE_KEY = "sideQuestDone";
 
     let currentLevel = "easy";      // na začátku je vybraná lehká úroveň
-    let currentCategory = "all";    // filtr kategorie, na začátku "Všechny" (nepamatuje se)
-    let currentBudget = "all";      // filtr budgetu, na začátku "Všechny" (nepamatuje se)
+    let currentCategories = [];     // vybrané kategorie (kódy); prázdný seznam = "Všechny" (nepamatuje se)
+    let currentBudgets = [];        // vybrané budgety (kódy); prázdný seznam = "Všechny" (nepamatuje se)
     let lastQuestId = "";           // pamatujeme si ID posledního questu, ať se hned neopakuje
     let currentQuest = null;        // quest, který je právě vidět na kartě
     let lastDone = null;            // quest, u kterého jde ještě kliknout na "Zpět"
@@ -966,17 +979,18 @@
       showOnCard(levelNames[level] + " úroveň", levelDoneMessages[level]);
     }
 
-    // Odpovídá quest zapnutým filtrům (kategorie + budget)?
+    // Odpovídá quest zapnutým filtrům? Kategorie je KTERÁKOLI z vybraných
+    // A ZÁROVEŇ budget je KTERÝKOLI z vybraných (prázdný seznam = všechno).
     function matchesFilters(quest) {
-      return (currentCategory === "all" || quest.category === currentCategory)
-          && (currentBudget === "all" || quest.budget === currentBudget);
+      return (currentCategories.length === 0 || currentCategories.includes(quest.category))
+          && (currentBudgets.length === 0 || currentBudgets.includes(quest.budget));
     }
 
-    // Názvy zapnutých filtrů pro zprávu, např. "Odvaha 💪 · Zdarma 🆓"
+    // Názvy zapnutých filtrů pro zprávu, např. "Odvaha 💪, Komunita 💬 · Zdarma 🆓"
     function activeFilterNames() {
       const names = [];
-      if (currentCategory !== "all") names.push(categoryName(currentCategory));
-      if (currentBudget !== "all") names.push(budgetName(currentBudget));
+      if (currentCategories.length) names.push(currentCategories.map(categoryName).join(", "));
+      if (currentBudgets.length) names.push(currentBudgets.map(budgetName).join(", "));
       return names.join(" · ");
     }
 
@@ -1056,35 +1070,53 @@
     const filtersConfirmButton = document.getElementById("filters-confirm");
 
     // Výběr v okně, který ještě není potvrzený. Platí až po "Potvrdit filtry".
-    let draftCategory = "all";
-    let draftBudget = "all";
+    // Seznamy kódů; prázdný seznam = "Všechny".
+    let draftCategories = [];
+    let draftBudgets = [];
 
-    // Dvě sekce filtrů. Každá ví, odkud bere možnosti a kde je uložená platná (get/set)
-    // a rozpracovaná (getDraft/setDraft) hodnota.
+    // Dvě sekce filtrů. Každá ví, odkud bere možnosti a kde je uložený platný (get/set)
+    // a rozpracovaný (getDraft/setDraft) seznam vybraných kódů.
     const filterSections = {
       category: {
         names: CATEGORIES,
         box: document.getElementById("category-options"),
-        get: () => currentCategory,
-        set: code => { currentCategory = code; },
-        getDraft: () => draftCategory,
-        setDraft: code => { draftCategory = code; }
+        get: () => currentCategories,
+        set: list => { currentCategories = list; },
+        getDraft: () => draftCategories,
+        setDraft: list => { draftCategories = list; }
       },
       budget: {
         names: BUDGETS,
         box: document.getElementById("budget-options"),
-        get: () => currentBudget,
-        set: code => { currentBudget = code; },
-        getDraft: () => draftBudget,
-        setDraft: code => { draftBudget = code; }
+        get: () => currentBudgets,
+        set: list => { currentBudgets = list; },
+        getDraft: () => draftBudgets,
+        setDraft: list => { draftBudgets = list; }
       }
     };
 
-    // Rovnou nastaví platný filtr jedné sekce (používá štítek na hlavní obrazovce).
-    function setFilter(section, code) {
+    // Seřadí kódy podle pořadí v CATEGORIES / BUDGETS (štítky pak mají stálé pořadí)
+    function inOrder(section, list) {
+      return Object.keys(filterSections[section].names).filter(code => list.includes(code));
+    }
+
+    // Klepnutí na možnost v okně: "Všechny" ostatní zruší, jiná možnost se zapne/vypne.
+    // Když se vypne poslední, sekce je zase "Všechny" (prázdný seznam).
+    function toggleDraft(section, code) {
       const s = filterSections[section];
-      if (s.get() === code) return;
-      s.set(code);
+      if (code === "all") {
+        s.setDraft([]);
+        return;
+      }
+      const list = s.getDraft();
+      s.setDraft(inOrder(section, list.includes(code) ? list.filter(c => c !== code) : list.concat(code)));
+    }
+
+    // Štítek na hlavní obrazovce: rovnou odebere jednu možnost (bez potvrzení)
+    function removeFilter(section, code) {
+      const s = filterSections[section];
+      if (!s.get().includes(code)) return;
+      s.set(s.get().filter(c => c !== code));
       renderFilters();
       clearCard();
     }
@@ -1092,29 +1124,35 @@
     // Překreslí okno podle rozpracovaného výběru (hlavní obrazovka se nemění)
     function renderDraft() {
       Object.values(filterSections).forEach(s => {
-        s.box.querySelectorAll(".category").forEach(b => b.classList.toggle("active", b.dataset.code === s.getDraft()));
+        const list = s.getDraft();
+        s.box.querySelectorAll(".category").forEach(b => {
+          const on = b.dataset.code === "all" ? list.length === 0 : list.includes(b.dataset.code);
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
       });
-      filtersResetButton.disabled = draftCategory === "all" && draftBudget === "all";
+      filtersResetButton.disabled = draftCategories.length === 0 && draftBudgets.length === 0;
     }
 
-    // Překreslí štítky a ikonu na hlavní obrazovce podle platných filtrů
+    // Překreslí štítky a ikonu na hlavní obrazovce podle platných filtrů (štítek pro každou možnost)
     function renderFilters() {
       filterBar.querySelectorAll(".filter-tag").forEach(tag => tag.remove());
       Object.entries(filterSections).forEach(([section, s]) => {
-        if (s.get() === "all") return;
-        const tag = document.createElement("button");
-        tag.className = "filter-tag";
-        tag.setAttribute("aria-label", "Zrušit filtr " + s.names[s.get()]);
-        tag.textContent = s.names[s.get()];
-        const x = document.createElement("span");
-        x.className = "filter-tag-x";
-        x.textContent = "✕";
-        tag.appendChild(x);
-        tag.addEventListener("click", () => setFilter(section, "all"));
-        filterBar.appendChild(tag);
+        s.get().forEach(code => {
+          const tag = document.createElement("button");
+          tag.className = "filter-tag";
+          tag.setAttribute("aria-label", "Zrušit filtr " + s.names[code]);
+          tag.textContent = s.names[code];
+          const x = document.createElement("span");
+          x.className = "filter-tag-x";
+          x.textContent = "✕";
+          tag.appendChild(x);
+          tag.addEventListener("click", () => removeFilter(section, code));
+          filterBar.appendChild(tag);
+        });
       });
 
-      const noFilters = currentCategory === "all" && currentBudget === "all";
+      const noFilters = currentCategories.length === 0 && currentBudgets.length === 0;
       filterBar.hidden = noFilters;
       document.getElementById("filters-open").classList.toggle("has-filters", !noFilters);
     }
@@ -1128,7 +1166,7 @@
         button.textContent = code === "all" ? "Všechny" : s.names[code];
         // Klepnutí na možnost změní jen výběr v okně, ne hlavní obrazovku
         button.addEventListener("click", () => {
-          s.setDraft(code);
+          toggleDraft(section, code);
           renderDraft();
         });
         s.box.appendChild(button);
@@ -1137,16 +1175,17 @@
 
     // "Zrušit filtry": v okně vrátí obě sekce na "Všechny" (platí až po potvrzení)
     filtersResetButton.addEventListener("click", () => {
-      draftCategory = "all";
-      draftBudget = "all";
+      draftCategories = [];
+      draftBudgets = [];
       renderDraft();
     });
 
     // "Potvrdit filtry": uloží výběr, zavře okno a (jen když se něco změnilo) vyčistí kartu
     filtersConfirmButton.addEventListener("click", () => {
-      const changed = draftCategory !== currentCategory || draftBudget !== currentBudget;
-      currentCategory = draftCategory;
-      currentBudget = draftBudget;
+      const changed = draftCategories.join() !== currentCategories.join()
+                   || draftBudgets.join() !== currentBudgets.join();
+      currentCategories = draftCategories.slice();
+      currentBudgets = draftBudgets.slice();
       filtersDialog.close();
       if (changed) {
         renderFilters();
@@ -1157,8 +1196,8 @@
     // Otevření okna: začíná s filtry, které právě platí. Zavření bez potvrzení
     // (✕, klávesa Esc nebo klepnutí vedle okna) rozpracovaný výběr zahodí.
     document.getElementById("filters-open").addEventListener("click", () => {
-      draftCategory = currentCategory;
-      draftBudget = currentBudget;
+      draftCategories = currentCategories.slice();
+      draftBudgets = currentBudgets.slice();
       renderDraft();
       filtersDialog.showModal();
       filtersDialog.scrollTop = 0;
