@@ -48,6 +48,24 @@ A small web page that gives overwhelmed young women working in corporate a rando
   per category.
 - When a level is fully completed, a celebration message appears.
 - „Začít znovu" (with a confirmation box) clears all progress.
+- **„Napiš mi 💌"** (in the footer, next to the Instagram link) opens a popup in the
+  Filtry style (✕, tap outside, Esc) for sending a message, saved to the Supabase table
+  `feedback`:
+  - Choose a type: „Chyba 🐛" (`chyba`), „Zpětná vazba 📩" (`zpetna_vazba`),
+    „Navrhnout quest ✨" (`quest`). Nothing is chosen at the start.
+  - „Tvoje zpráva": required, max 500 characters, counter „0/500". „Tvůj Instagram
+    (nepovinné)": max 50, a leading „@" is removed.
+  - „Odeslat 💌" is faded until a type and some text are filled in.
+  - Only for „Chyba 🐛": a note says basic browser/device info is attached (no personal
+    data), and `device_info` gets the browser (user agent), screen/window size, language,
+    whether it runs from the home screen, and whether it's a local file or the website.
+  - Sent with `Prefer: return=minimal` (anon may not read the table, so asking for the
+    saved row back would fail). 10 s timeout.
+  - Success: a thank-you message, and the form is cleared. Failure: a friendly error,
+    and the text stays in the form. Closing the popup also keeps the unsent text.
+  - Spam protection: max 1 message per 30 s (time kept in localStorage key
+    `sideQuestFeedbackSent`, in try/catch). This is only a check in the browser, not in
+    the database.
 - Quests are loaded from Supabase when the page opens (card shows „Načítám questy… ✨").
   If that fails (offline, Supabase down, 10 s timeout, empty answer), the card shows a
   friendly Czech message and clicking „Dej mi side quest ✨" tries again. The deník shows
@@ -97,7 +115,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   still lists it; re-running it is harmless (it just matches nothing).
 - SQL files in `supabase/`, run once in the SQL Editor, in this order:
   `setup.sql` (table, security, first 96 quests) → `add-budget.sql` (budget column +
-  allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL). All are safe to re-run.
+  allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL) →
+  `add-feedback.sql` (feedback table, insert-only). All are safe to re-run.
 - **Adding or fixing a quest:** Supabase → Table Editor → `quests` → Insert row (or edit
   the text). Fill in a budget too. Same ID rules as below. Feminine verb forms. The app picks it up on reload.
 - **Security (do not loosen):**
@@ -111,6 +130,21 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   - **Never put the secret key (`sb_secret_…` / service_role) in the code or the repo.**
 - A new table must get its grants and policies written explicitly in SQL (nothing is
   exposed automatically).
+
+### Table `feedback` (messages from „Napiš mi 💌")
+- Created by `supabase/add-feedback.sql` (run once in the SQL Editor; safe to re-run, it
+  never deletes messages).
+- Columns: `id` (uuid, automatic), `created_at` (automatic), `type` (only `chyba`,
+  `zpetna_vazba`, `quest`), `message` (required, 1–500 characters, not only spaces),
+  `instagram` (optional, max 50), `device_info` (optional, only allowed when
+  `type = 'chyba'`, max 500).
+- **Security (do not loosen):** RLS on. `anon` has **only** `GRANT INSERT` on the four
+  columns `type, message, instagram, device_info` (so `id` / `created_at` can't be faked),
+  and one policy „Kdokoli může poslat zprávu" (`for insert to anon with check (true)`).
+  No select/update/delete grants or policies for `anon` or `authenticated`: nobody can
+  read the messages through the app or the public key.
+- **Reading messages:** only the owner, in the Supabase dashboard → Table Editor →
+  `feedback` (sort by `created_at`). Deleting old messages is done there too.
 
 ## Online (GitHub)
 - Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)
@@ -164,8 +198,11 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     confirming discards, Zrušit filtry + confirm, tags, both "nothing matches"
     messages), Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
+  - „Napiš mi 💌": send stays faded without type/text, counter, bug note only for
+    „Chyba 🐛", thank-you after sending, error keeps the text, 30 s wait message
 - After any database change, recheck with the publishable key (e.g. `curl`) that
-  insert / update / delete are still refused.
+  `quests`: insert / update / delete are still refused, and `feedback`: insert works
+  (with `Prefer: return=minimal`) but select / update / delete are refused.
 
 ## Working with the user
 The owner is a beginner. Explain plans in simple words and wait for approval before
@@ -183,6 +220,9 @@ writing code.
 - ~~**Budget filter**~~ – done (Nov 2026): `budget` in Supabase, Budget section in the
   Filtry popup, budget label on the card.
 - ~~**Hide filters under one button**~~ – done as the „Filtry" popup with tags.
+- ~~**Feedback form**~~ – done (Nov 2026) as „Napiš mi 💌", see the `feedback` table above.
+- **Email notification when new feedback arrives** (e.g. a Supabase Database Webhook or
+  Edge Function that emails the owner on each new `feedback` row).
 - **Multi-select in filters** (e.g. Odvaha + Komunita at once).
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage

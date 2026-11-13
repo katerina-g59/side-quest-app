@@ -523,7 +523,7 @@
       .filters-reset:hover:not(:disabled) { background: rgba(232, 197, 195, 0.6); }
     }
 
-    .filters-confirm:active,
+    .filters-confirm:active:not(:disabled),
     .filters-reset:active:not(:disabled) { transform: scale(0.98); }
 
     /* Když není co rušit, tlačítko je vybledlé */
@@ -558,9 +558,102 @@
       opacity: 0.8;
     }
 
-    .footer a {
+    .footer a,
+    .footer-link {
       color: var(--wine);
       font-weight: 600;
+    }
+
+    /* "Napiš mi 💌" vypadá jako odkaz, ale je to tlačítko (otevře okno) */
+    .footer-link {
+      padding: 10px 4px;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* ===== Okno "Napiš mi 💌" (vzhled přebírá od okna Filtry) ===== */
+    .feedback h3 { margin-top: 16px; }
+
+    .feedback-note {
+      margin: 12px 0 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--pink);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .feedback-label {
+      display: block;
+      margin: 20px 0 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--wine);
+    }
+
+    /* Písmo 16px, aby iPhone po klepnutí do pole nezoomoval */
+    .feedback-field {
+      display: block;
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--wine);
+      border-radius: 14px;
+      background: #fffaf0;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    textarea.feedback-field {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    .feedback-field:focus {
+      outline: 2px solid var(--wine);
+      outline-offset: 1px;
+    }
+
+    .feedback-counter {
+      margin-top: 6px;
+      text-align: right;
+      font-size: 0.75rem;
+      opacity: 0.75;
+    }
+
+    /* Hláška o chybě nebo o čekání (30 s mezi zprávami) */
+    .feedback-status {
+      margin: 16px 0 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1.5px solid var(--wine);
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .filters-confirm:disabled {
+      opacity: 0.4;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .feedback-thanks {
+      padding: 12px 0 4px;
+      text-align: center;
+    }
+
+    .feedback-thanks p {
+      margin: 8px 0 24px;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      line-height: 1.4;
     }
 
     /* Jemné objevení nového questu */
@@ -637,7 +730,8 @@
 
     <footer class="footer">
       Vytvořeno v rámci 90hodinové challenge ·
-      <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a>
+      <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a> ·
+      <button class="footer-link" id="feedback-open">Napiš mi 💌</button>
     </footer>
   </main>
 
@@ -667,6 +761,49 @@
       <div class="filters-actions">
         <button class="filters-confirm" id="filters-confirm">Potvrdit filtry</button>
         <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Okno "Napiš mi 💌": nahlášení chyby, zpětná vazba nebo návrh questu (ukládá se do Supabase) -->
+  <dialog class="journal filters feedback" id="feedback" aria-labelledby="feedback-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="feedback-title" tabindex="-1" autofocus>Napiš mi 💌</h2>
+        <button class="icon-close" id="feedback-close" aria-label="Zavřít">✕</button>
+      </div>
+
+      <form id="feedback-form" novalidate>
+        <h3>Co mi chceš napsat?</h3>
+        <div class="filter-options" id="feedback-types">
+          <button type="button" class="category" data-type="chyba" aria-pressed="false">Chyba 🐛</button>
+          <button type="button" class="category" data-type="zpetna_vazba" aria-pressed="false">Zpětná vazba 📩</button>
+          <button type="button" class="category" data-type="quest" aria-pressed="false">Navrhnout quest ✨</button>
+        </div>
+        <p class="feedback-note" id="feedback-device-note" hidden>
+          K nahlášení chyby automaticky přiložím základní info o prohlížeči a zařízení
+          (typ prohlížeče, velikost obrazovky, jazyk). Žádné osobní údaje. 🔒
+        </p>
+
+        <label class="feedback-label" for="feedback-message">Tvoje zpráva</label>
+        <textarea class="feedback-field" id="feedback-message" maxlength="500" required
+                  aria-describedby="feedback-counter"></textarea>
+        <div class="feedback-counter" id="feedback-counter">0/500</div>
+
+        <label class="feedback-label" for="feedback-instagram">Tvůj Instagram (nepovinné)</label>
+        <input class="feedback-field" id="feedback-instagram" type="text" maxlength="50"
+               placeholder="@tvuj_instagram" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+        <p class="feedback-status" id="feedback-status" role="status" hidden></p>
+
+        <div class="filters-actions">
+          <button type="submit" class="filters-confirm" id="feedback-send" disabled>Odeslat 💌</button>
+        </div>
+      </form>
+
+      <div class="feedback-thanks" id="feedback-thanks" hidden>
+        <p>Děkuju moc, zpráva dorazila! 💌<br>Každé tvé slovo mi pomáhá appku vylepšovat.</p>
+        <button type="button" class="filters-confirm" id="feedback-done">Zavřít</button>
       </div>
     </div>
   </dialog>
@@ -1202,6 +1339,153 @@
     journal.addEventListener("click", e => {
       if (e.target === journal) journal.close();
     });
+
+    // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====
+    // Databáze dovolí veřejnému klíči zprávy jen přidávat, ne číst. Proto posíláme
+    // "Prefer: return=minimal" (nechceme uložený řádek zpátky – jinak by to selhalo).
+    const FEEDBACK_KEY = "sideQuestFeedbackSent";  // čas posledního odeslání (ochrana proti spamu)
+    const FEEDBACK_WAIT = 30;                       // sekund mezi dvěma zprávami
+
+    const feedbackDialog = document.getElementById("feedback");
+    const feedbackForm = document.getElementById("feedback-form");
+    const feedbackThanks = document.getElementById("feedback-thanks");
+    const feedbackTypeButtons = document.querySelectorAll("#feedback-types .category");
+    const feedbackDeviceNote = document.getElementById("feedback-device-note");
+    const feedbackMessage = document.getElementById("feedback-message");
+    const feedbackCounter = document.getElementById("feedback-counter");
+    const feedbackInstagram = document.getElementById("feedback-instagram");
+    const feedbackStatus = document.getElementById("feedback-status");
+    const feedbackSend = document.getElementById("feedback-send");
+
+    let feedbackType = "";          // "chyba" / "zpetna_vazba" / "quest", na začátku nic
+    let feedbackSending = false;    // právě se odesílá (proti dvojkliku)
+    let feedbackLastSent = 0;       // záloha, když prohlížeč nedovolí localStorage
+
+    // Kdy byla naposledy odeslaná zpráva (v milisekundách)
+    function lastFeedbackTime() {
+      try {
+        const saved = Number(localStorage.getItem(FEEDBACK_KEY));
+        if (saved > feedbackLastSent) return saved;
+      } catch (e) {}
+      return feedbackLastSent;
+    }
+
+    function rememberFeedbackTime() {
+      feedbackLastSent = Date.now();
+      try {
+        localStorage.setItem(FEEDBACK_KEY, String(feedbackLastSent));
+      } catch (e) {}
+    }
+
+    // Základní info o prohlížeči a zařízení (jen u "Chyba 🐛", žádné osobní údaje)
+    function deviceInfo() {
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+      return [
+        "Prohlížeč: " + navigator.userAgent,
+        "Obrazovka: " + screen.width + "×" + screen.height + " (okno " + window.innerWidth + "×" + window.innerHeight + ", hustota " + window.devicePixelRatio + ")",
+        "Jazyk: " + navigator.language,
+        "Spuštěno z plochy: " + (standalone ? "ano" : "ne"),
+        "Adresa: " + (location.protocol === "file:" ? "soubor v počítači" : location.host)
+      ].join("\n").slice(0, 500);
+    }
+
+    function showFeedbackStatus(text) {
+      feedbackStatus.textContent = text;
+      feedbackStatus.hidden = !text;
+    }
+
+    // Překreslí výběr typu, poznámku o zařízení, počítadlo a tlačítko "Odeslat"
+    function renderFeedback() {
+      feedbackTypeButtons.forEach(b => {
+        const on = b.dataset.type === feedbackType;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      feedbackDeviceNote.hidden = feedbackType !== "chyba";
+      feedbackCounter.textContent = feedbackMessage.value.length + "/500";
+      feedbackSend.disabled = feedbackSending || !feedbackType || !feedbackMessage.value.trim();
+      feedbackSend.textContent = feedbackSending ? "Odesílám… ✨" : "Odeslat 💌";
+    }
+
+    feedbackTypeButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        feedbackType = button.dataset.type;
+        renderFeedback();
+      });
+    });
+    feedbackMessage.addEventListener("input", renderFeedback);
+
+    // Odeslání zprávy
+    feedbackForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const message = feedbackMessage.value.trim();
+      if (feedbackSending || !feedbackType || !message) return;
+
+      // Ochrana proti spamu: max 1 zpráva za 30 sekund
+      const waitLeft = Math.ceil(FEEDBACK_WAIT - (Date.now() - lastFeedbackTime()) / 1000);
+      if (waitLeft > 0 && waitLeft <= FEEDBACK_WAIT) {
+        showFeedbackStatus("Chvilku strpení ⏳ Další zprávu můžeš poslat za " + waitLeft + " s.");
+        return;
+      }
+
+      const instagram = feedbackInstagram.value.trim().replace(/^@+/, "").slice(0, 50);
+      const row = {
+        type: feedbackType,
+        message: message.slice(0, 500),
+        instagram: instagram || null,
+        device_info: feedbackType === "chyba" ? deviceInfo() : null
+      };
+
+      feedbackSending = true;
+      showFeedbackStatus("");
+      renderFeedback();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(SUPABASE_URL + "/rest/v1/feedback", {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal"
+          },
+          body: JSON.stringify(row),
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("Supabase odpověděl " + response.status);
+
+        // Povedlo se: poděkujeme a formulář vyčistíme
+        rememberFeedbackTime();
+        feedbackType = "";
+        feedbackMessage.value = "";
+        feedbackInstagram.value = "";
+        feedbackForm.hidden = true;
+        feedbackThanks.hidden = false;
+      } catch (err) {
+        // Nepovedlo se: text zůstane ve formuláři, stačí to zkusit znovu
+        showFeedbackStatus("Zprávu se teď nepodařilo odeslat 😕 Zkontroluj připojení k internetu a zkus to znovu. Tvůj text tu zůstal.");
+      } finally {
+        clearTimeout(timer);
+        feedbackSending = false;
+        renderFeedback();
+      }
+    });
+
+    // Otevření okna. Rozepsaná zpráva zůstává, i když okno zavřeš (smaže se až po odeslání).
+    document.getElementById("feedback-open").addEventListener("click", () => {
+      feedbackForm.hidden = false;
+      feedbackThanks.hidden = true;
+      renderFeedback();
+      feedbackDialog.showModal();
+      feedbackDialog.scrollTop = 0;
+    });
+    document.getElementById("feedback-close").addEventListener("click", () => feedbackDialog.close());
+    document.getElementById("feedback-done").addEventListener("click", () => feedbackDialog.close());
+    feedbackDialog.addEventListener("click", e => {
+      if (e.target === feedbackDialog) feedbackDialog.close();
+    });
+    // Po zavření zmizí stará hláška (chyba / čekání); text zůstává
+    feedbackDialog.addEventListener("close", () => showFeedbackStatus(""));
 
     // Hned po otevření stránky načteme questy ze Supabase
     loadQuests();
