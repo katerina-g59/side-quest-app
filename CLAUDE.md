@@ -22,10 +22,12 @@ A small web page that gives overwhelmed young women working in corporate a rando
   - Two full-width buttons at the bottom, stacked: **„Potvrdit filtry"** (primary: wine
     with cream text) saves the selection, closes the popup and, only if something
     changed, updates tags/icon and clears the card. **„Zrušit filtry"** (secondary: dusty
-    pink with wine text) only resets the popup's selection to „Všechny / Všechny"; it
-    still needs „Potvrdit filtry" (faded and inactive when already on „Všechny").
-    The owner asked for this (Nov 2026) so a reset button isn't where people expect
-    "confirm".
+    pink with wine text) removes all filters **right away**, in the popup and on the
+    main screen (tags gone, icon not pink, card cleared if a filter was on); the popup
+    stays open. Faded and inactive when there's nothing to cancel (nothing selected in
+    the popup and nothing applied). The owner changed this (Nov 2026, during testing):
+    users expect „Zrušit" to cancel the shown filters, and the separate „Potvrdit
+    filtry" button already avoids accidental resets.
   - Closing without confirming (✕, tap outside, Esc) discards the unconfirmed selection;
     reopening shows the filters that are actually on.
   - On the main screen, every selected option shows as its own pink tag in a row under
@@ -208,7 +210,7 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - After changes, check:
   - quests load (96 in Nov 2026, all with a valid budget), and the progress counts are right
   - Filtry popup (options change nothing until „Potvrdit filtry", closing without
-    confirming discards, Zrušit filtry + confirm, tags, both "nothing matches"
+    confirming discards, Zrušit filtry cancels everything at once, tags, both "nothing matches"
     messages), Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
   - „Napiš mi 💌": send stays faded without type/text, counter, bug note only for

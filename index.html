@@ -665,9 +665,9 @@
     .feedback-thanks p {
       white-space: pre-line;  /* "\n" v textu poděkování = nový řádek */
       margin: 8px 0 24px;
-      font-family: 'Playfair Display', serif;
-      font-size: 1.25rem;
-      line-height: 1.4;
+      font-size: 1.05rem;     /* Montserrat (jako zbytek textu) – Playfair jen pro nadpisy a questy */
+      font-weight: 500;
+      line-height: 1.55;
     }
 
     /* Jemné objevení nového questu */
@@ -1131,7 +1131,9 @@
           b.setAttribute("aria-pressed", on ? "true" : "false");
         });
       });
-      filtersResetButton.disabled = draftCategories.length === 0 && draftBudgets.length === 0;
+      // "Zrušit filtry" je vybledlé, jen když není co rušit (ani v okně, ani na hlavní obrazovce)
+      filtersResetButton.disabled = draftCategories.length === 0 && draftBudgets.length === 0
+                                 && currentCategories.length === 0 && currentBudgets.length === 0;
     }
 
     // Překreslí štítky a ikonu na hlavní obrazovce podle platných filtrů (štítek pro každou možnost)
@@ -1173,11 +1175,19 @@
       });
     });
 
-    // "Zrušit filtry": v okně vrátí obě sekce na "Všechny" (platí až po potvrzení)
+    // "Zrušit filtry": rovnou zruší všechny filtry (v okně i na hlavní obrazovce),
+    // okno zůstane otevřené. Karta se vyčistí jen když byl nějaký filtr opravdu zapnutý.
     filtersResetButton.addEventListener("click", () => {
+      const hadFilters = currentCategories.length > 0 || currentBudgets.length > 0;
       draftCategories = [];
       draftBudgets = [];
+      currentCategories = [];
+      currentBudgets = [];
       renderDraft();
+      if (hadFilters) {
+        renderFilters();
+        clearCard();
+      }
     });
 
     // "Potvrdit filtry": uloží výběr, zavře okno a (jen když se něco změnilo) vyčistí kartu
