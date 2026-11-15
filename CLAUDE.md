@@ -104,7 +104,7 @@ A small web page that gives overwhelmed young women working in corporate a rando
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `supabase/functions/feedback-email/index.ts` – backup of the Edge Function that emails
   new feedback (the real one lives in the Supabase dashboard; no secrets in this file).
-- `quests.js` – **backup only, not loaded by the app** (state at the move to Supabase,
+- `quests_old_backup.js` (renamed from `quests.js`) – **backup only, not loaded by the app** (state at the move to Supabase,
   Nov 2026). Changes to it do nothing in the app.
 - `icon.png` – the app icon: a hand-drawn cream star on wine (512×512, made by the
   owner). Used everywhere: browser tab (`rel="icon"`), iPhone home screen
