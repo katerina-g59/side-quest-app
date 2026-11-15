@@ -102,6 +102,8 @@ A small web page that gives overwhelmed young women working in corporate a rando
     used by the tags.
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
+- `supabase/functions/feedback-email/index.ts` – backup of the Edge Function that emails
+  new feedback (the real one lives in the Supabase dashboard; no secrets in this file).
 - `quests.js` – **backup only, not loaded by the app** (state at the move to Supabase,
   Nov 2026). Changes to it do nothing in the app.
 - `icon.png` – the app icon: a hand-drawn cream star on wine (512×512, made by the
@@ -161,6 +163,44 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - **Reading messages:** only the owner, in the Supabase dashboard → Table Editor →
   `feedback` (sort by `created_at`). Deleting old messages is done there too.
 
+### Email for new feedback (Edge Function `feedback-email` + Resend)
+- Flow: new row in `feedback` → **Database Webhook** (on INSERT into `public.feedback`) →
+  Edge Function `feedback-email` → Resend → email to the owner. If the email fails, the
+  row is still saved.
+- Everything is set up in the **dashboard only** (the owner doesn't use the Supabase CLI).
+  `supabase/functions/feedback-email/index.ts` is a **backup copy** of the code in the
+  dashboard: after changing it, paste it into Edge Functions → the function → Code and
+  Deploy.
+- **Name vs. address:** the dashboard shows the name `feedback-email`, but the function's
+  slug (its address, fixed at creation) is **`super-responder`**:
+  `https://rrcclzjcbupgshdsskgm.supabase.co/functions/v1/super-responder`. The webhook
+  points to it. Working since 15 Nov 2026; the first test email arrived fine.
+- Email:
+  - Subject by type: „🐛 Nová chyba v Side Quest appce", „📩 Nová zpětná vazba v Side
+    Quest appce", „✨ Nový návrh questu v Side Quest appce".
+  - Content: the type, the time (Czech time, e.g. „15. 11. 2026 21:04"), Instagram (as
+    a link if it looks valid), the message, and the device info for bugs.
+  - User text is HTML-escaped.
+- **Secrets** (Supabase → Edge Functions → Secrets; set by the owner; **never** in the
+  code, the repo or the chat):
+  - `RESEND_API_KEY`
+  - `WEBHOOK_SECRET` (a long random password)
+  - `NOTIFY_EMAIL` (the owner's address; kept out of the public repo)
+  - optional `FROM_EMAIL`; default `Side Quest <onboarding@resend.dev>`, which without
+    a verified domain can only send to the Resend account's own email.
+- **Protection:** "Verify JWT" is **off** for this function. Instead, every request must
+  have the header `x-webhook-secret` equal to `WEBHOOK_SECRET` (compared in constant
+  time), otherwise `401` and no email. Only POST; only `INSERT` on `feedback` sends
+  anything.
+- **Webhook settings:**
+  - table `public.feedback`, event Insert
+  - type "Supabase Edge Functions" → `super-responder` (shown as `feedback-email`), method POST
+  - HTTP header `x-webhook-secret: <the same password>`
+- **Logs:** Edge Functions → `feedback-email` → Logs / Invocations. Webhook calls:
+  Database → Webhooks, or the `net._http_response` table.
+- Limits: Resend free plan is about 100 emails/day. The 30 s spam limit is only in the
+  app.
+
 ## Online (GitHub)
 - Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)
 - Repository: https://github.com/katerina-g59/side-quest-app (public)
@@ -218,6 +258,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - After any database change, recheck with the publishable key (e.g. `curl`) that
   `quests`: insert / update / delete are still refused, and `feedback`: insert works
   (with `Prefer: return=minimal`) but select / update / delete are refused.
+- After changing `feedback-email`: calling `…/functions/v1/super-responder` without /
+  with a wrong `x-webhook-secret` must give `401`, and a test row in `feedback` must produce one email.
 
 ## Working with the user
 The owner is a beginner. Explain plans in simple words and wait for approval before
@@ -236,8 +278,8 @@ writing code.
   Filtry popup, budget label on the card.
 - ~~**Hide filters under one button**~~ – done as the „Filtry" popup with tags.
 - ~~**Feedback form**~~ – done (Nov 2026) as „Napiš mi 💌", see the `feedback` table above.
-- **Email notification when new feedback arrives** (e.g. a Supabase Database Webhook or
-  Edge Function that emails the owner on each new `feedback` row).
+- ~~**Email notification when new feedback arrives**~~ – done (Nov 2026): Database
+  Webhook → Edge Function `feedback-email` → Resend, see above.
 - ~~**Multi-select in filters**~~ – done (Nov 2026): several options per section, one tag
   per option.
 - **Syncing progress across devices (later)**, so the phone and the computer know
