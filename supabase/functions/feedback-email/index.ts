@@ -82,6 +82,10 @@ Deno.serve(async (req) => {
   const instagram = row.instagram ? String(row.instagram) : "";
   const time = czechTime(String(row.created_at ?? ""));
   const device = row.type === "chyba" && row.device_info ? String(row.device_info) : "";
+  // Souhlas s uvedením IG u přidaného questu (jen u návrhu questu s vyplněným Instagramem)
+  const consent = row.type === "quest" && instagram
+    ? (row.consent_credit === true ? "✅ ano" : "❌ ne")
+    : "";
 
   // Instagram jako odkaz, jen když vypadá jako opravdové jméno účtu
   const igValid = /^[A-Za-z0-9._]{1,30}$/.test(instagram);
@@ -95,6 +99,7 @@ Deno.serve(async (req) => {
     ["Čas", escapeHtml(time)],
   ];
   if (instagram) rows.push(["Instagram", igHtml]);
+  if (consent) rows.push(["Souhlas s uvedením IG", consent]);
 
   const html = `
 <div style="font-family:Arial,sans-serif;color:#35211F;max-width:560px">
@@ -111,6 +116,7 @@ Deno.serve(async (req) => {
 
   const lines = [`Typ: ${type.name}`, `Čas: ${time}`];
   if (instagram) lines.push(`Instagram: @${instagram}`);
+  if (consent) lines.push(`Souhlas s uvedením IG: ${consent}`);
   lines.push("", "Zpráva:", message);
   if (device) lines.push("", "Info o zařízení:", device);
   const text = lines.join("\n");

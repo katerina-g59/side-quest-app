@@ -46,6 +46,16 @@ A small web page that gives overwhelmed young women working in corporate a rando
   - Progress („Splněno X/Y"), the celebration and the deník ignore filters.
 - The card shows the quest's category and budget as two small labels (e.g. „Odvaha 💪"
   „Zdarma 🆓"); an unknown code just has no label.
+- **Quest author credit:** if a quest has `author_instagram`, a small cream tag
+  „Quest od @handle 💌" appears under the quest text and opens
+  `https://www.instagram.com/handle/` in a new tab (`rel="noopener noreferrer"`).
+  Not shown in the deník.
+  - **XSS protection (keep it):** the handle comes from a stranger, so `showAuthor()`
+    checks it again against `IG_HANDLE` (`^[A-Za-z0-9._]{1,30}$`, same as the database
+    rule). An invalid handle means no tag.
+  - The text is set only with `textContent` (never `innerHTML`), and the link is built
+    from the fixed prefix + `encodeURIComponent(handle)`, so no `javascript:` or other
+    link is possible.
 - „Hotovo ✓" marks the shown quest as completed. Completed quests are not offered again.
 - „Zpět" next to it undoes that one completion. It stays available until you generate
   a new quest, switch level or reset (also under the celebration message, if it was
@@ -67,6 +77,12 @@ A small web page that gives overwhelmed young women working in corporate a rando
   - „Tvoje zpráva": required, max 500 characters, counter „0/500". „Tvůj Instagram
     (nepovinné)": max 50, a leading „@" is removed.
   - „Odeslat 💌" is faded until a type and some text are filled in.
+  - Only for „Navrhnout quest ✨" **with** an Instagram filled in: a checkbox
+    „Když tvůj quest přidám, můžu u něj uvést tvůj Instagram." It's **unchecked by
+    default**: the owner wanted it pre-ticked, but under GDPR a pre-ticked box isn't
+    valid consent, so she chose unticked. Its value is sent as `consent_credit`
+    (true/false); in all other cases the field isn't sent at all. It resets after
+    sending.
   - Only for „Chyba 🐛": a note says basic browser/device info is attached (no personal
     data), and `device_info` gets the browser (user agent), screen/window size, language,
     whether it runs from the home screen, and whether it's a local file or the website.
@@ -95,7 +111,8 @@ A small web page that gives overwhelmed young women working in corporate a rando
   - `BUDGETS` does the same for budget: `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸",
     `vicnez500` „Víc než 500 Kč 💰".
   - `loadQuests()` fetches the quests and sorts them into `QUESTS` =
-    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, budget, text }`.
+    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, budget, text, author }`
+    (`author` = `author_instagram`, usually empty).
   - Filter state: `currentCategories` / `currentBudgets`, lists of codes in
     `CATEGORIES` / `BUDGETS` order (empty list = Všechny); `matchesFilters(quest)` decides
     what can be picked, `toggleDraft()` holds the „Všechny" rules, `removeFilter()` is
@@ -126,16 +143,34 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - `budget` is required (NOT NULL) and only allows 3 codes (constraint `quests_budget_check`):
   `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸", `vicnez500` „Víc než 500 Kč 💰".
   The display names live in `BUDGETS` in `index.html` (used by the Budget filter and
-  the card label). The app selects `id, level, category, budget, text`.
+  the card label). The app selects `id, level, category, budget, text, author_instagram`.
+- `author_instagram` (optional): the Instagram of the woman who suggested the quest,
+  without @. Constraint `quests_author_instagram_check` allows only
+  `^[A-Za-z0-9._]{1,30}$`. Added by `add-credit.sql`; reading rights unchanged.
 - Nov 2026: 96 quests (easy 34 / medium 31 / hard 31). The owner deleted `medium-032`
   (a duplicate of `easy-022`), so that ID must never be used again. `fill-budget.sql`
   still lists it; re-running it is harmless (it just matches nothing).
 - SQL files in `supabase/`, run once in the SQL Editor, in this order:
   `setup.sql` (table, security, first 96 quests) → `add-budget.sql` (budget column +
   allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL) →
-  `add-feedback.sql` (feedback table, insert-only). All are safe to re-run.
+  `add-feedback.sql` (feedback table, insert-only) → `add-credit.sql`
+  (`quests.author_instagram`, `feedback.consent_credit`). All are safe to re-run.
+  A new column the app asks for must exist **before** the app version using it is pushed
+  (otherwise quest loading / sending fails).
 - **Adding or fixing a quest:** Supabase → Table Editor → `quests` → Insert row (or edit
   the text). Fill in a budget too. Same ID rules as below. Feminine verb forms. The app picks it up on reload.
+- **Adding a quest someone suggested (owner's manual approval steps):**
+  1. Table Editor → `feedback`: find the row with `type = quest`, and note its
+     `instagram` and `consent_credit`.
+  2. Table Editor → `quests`: sort by `id` and find the highest number in the chosen
+     level. The new quest gets the **next free number** (never reuse an ID; never
+     `medium-032`).
+  3. Insert row: `id`, `level`, `category`, `budget`, and `text` (rewritten if needed,
+     feminine verb forms).
+  4. Fill in `author_instagram` (without @) **only if** `consent_credit` is true **and**
+     the owner has opened `instagram.com/<handle>` and checked the account exists.
+     Otherwise leave it empty: the quest is added without a signature.
+  5. Reload the app: the quest shows „Quest od @handle 💌".
 - **Security (do not loosen):**
   - The project has "Automatically expose new tables" OFF and automatic RLS ON.
   - On `quests`: RLS is on, `anon` has **only** `GRANT SELECT`, and there is one policy
@@ -154,9 +189,12 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - Columns: `id` (uuid, automatic), `created_at` (automatic), `type` (only `chyba`,
   `zpetna_vazba`, `quest`), `message` (required, 1–500 characters, not only spaces),
   `instagram` (optional, max 50), `device_info` (optional, only allowed when
-  `type = 'chyba'`, max 500).
-- **Security (do not loosen):** RLS on. `anon` has **only** `GRANT INSERT` on the four
-  columns `type, message, instagram, device_info` (so `id` / `created_at` can't be faked),
+  `type = 'chyba'`, max 500), `consent_credit` (optional yes/no; "yes" only allowed
+  when `type = 'quest'` and `instagram` is filled in, constraint
+  `feedback_consent_credit_check`).
+- **Security (do not loosen):** RLS on. `anon` has **only** `GRANT INSERT` on the five
+  columns `type, message, instagram, device_info, consent_credit` (so `id` / `created_at`
+  can't be faked),
   and one policy „Kdokoli může poslat zprávu" (`for insert to anon with check (true)`).
   No select/update/delete grants or policies for `anon` or `authenticated`: nobody can
   read the messages through the app or the public key.
@@ -179,7 +217,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   - Subject by type: „🐛 Nová chyba v Side Quest appce", „📩 Nová zpětná vazba v Side
     Quest appce", „✨ Nový návrh questu v Side Quest appce".
   - Content: the type, the time (Czech time, e.g. „15. 11. 2026 21:04"), Instagram (as
-    a link if it looks valid), the message, and the device info for bugs.
+    a link if it looks valid), for quest suggestions with Instagram „Souhlas s uvedením
+    IG: ✅ ano / ❌ ne", the message, and the device info for bugs.
   - User text is HTML-escaped.
 - **Secrets** (Supabase → Edge Functions → Secrets; set by the owner; **never** in the
   code, the repo or the chat):

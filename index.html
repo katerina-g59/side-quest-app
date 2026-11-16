@@ -281,6 +281,24 @@
       font-weight: 600;
     }
 
+    /* Štítek "Quest od @… 💌" pod textem questu (odkaz na Instagram autorky) */
+    .card-author {
+      align-self: center;
+      margin-top: 16px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--cream);
+      color: var(--wine);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      overflow-wrap: anywhere;
+    }
+
+    @media (hover: hover) {
+      .card-author:hover { text-decoration: underline; }
+    }
+
     .quest {
       font-family: 'Playfair Display', serif;
       font-size: clamp(1.3rem, 5vw, 1.7rem);
@@ -634,6 +652,30 @@
       outline-offset: 1px;
     }
 
+    /* Zaškrtávátko souhlasu: celý řádek jde ťuknout */
+    .feedback-consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 44px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--pink);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      cursor: pointer;
+    }
+
+    .feedback-consent input {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      margin: 0;
+      accent-color: var(--wine);
+      cursor: pointer;
+    }
+
     .feedback-counter {
       margin-top: 6px;
       text-align: right;
@@ -732,6 +774,8 @@
         <span class="card-tag" id="card-budget"></span>
       </div>
       <p class="quest placeholder" id="quest">Tvůj side quest se objeví tady.</p>
+      <!-- "Quest od @…": jen u questů s autorkou (odkaz i text doplní skript bezpečně) -->
+      <a class="card-author" id="card-author" target="_blank" rel="noopener noreferrer" hidden></a>
       <div class="card-actions">
         <button class="done" id="done" hidden>Hotovo ✓</button>
         <button class="undo" id="undo" hidden>Zpět</button>
@@ -808,6 +852,12 @@
         <input class="feedback-field" id="feedback-instagram" type="text" maxlength="50"
                placeholder="@tvuj_instagram" autocomplete="off" autocapitalize="off" spellcheck="false">
 
+        <!-- Jen u "Navrhnout quest ✨" s vyplněným Instagramem; na začátku nezaškrtnuté -->
+        <label class="feedback-consent" id="feedback-consent" hidden>
+          <input type="checkbox" id="feedback-consent-check">
+          <span>Když tvůj quest přidám, můžu u něj uvést tvůj Instagram.</span>
+        </label>
+
         <p class="feedback-status" id="feedback-status" role="status" hidden></p>
 
         <div class="filters-actions">
@@ -847,7 +897,8 @@
       vicnez500: "Víc než 500 Kč 💰"
     };
 
-    // Questy po úrovních: { easy: [{ id, category, budget, text }, ...], medium: [...], hard: [...] }
+    // Questy po úrovních: { easy: [{ id, category, budget, text, author }, ...], medium: [...], hard: [...] }
+    // "author" = Instagram autorky questu (sloupec author_instagram), většinou prázdné.
     // Dokud se nenačtou ze Supabase, je to undefined.
     let QUESTS;
     let questsStatus = "loading";   // "loading" = načítá se, "ready" = hotovo, "error" = nepovedlo se
@@ -882,6 +933,7 @@
     const questText = document.getElementById("quest");
     const cardLevel = document.getElementById("card-level");
     const cardTags = document.getElementById("card-tags");
+    const cardAuthor = document.getElementById("card-author");
     const cardCategory = document.getElementById("card-category");
     const cardBudget = document.getElementById("card-budget");
     const card = document.getElementById("card");
@@ -955,7 +1007,28 @@
     }
 
     // Ukáže text na kartě s jemnou animací (štítky kategorie a budgetu jen u skutečného questu)
-    function showOnCard(levelText, text, category, budget) {
+    // Platné jméno Instagram účtu: písmena, čísla, tečka, podtržítko, 1–30 znaků (bez @).
+    // Stejné pravidlo hlídá i databáze; tady je to druhá pojistka.
+    const IG_HANDLE = /^[A-Za-z0-9._]{1,30}$/;
+
+    // Štítek "Quest od @… 💌". Jméno je od cizího člověka, proto:
+    // - jen jako obyčejný text (textContent), nikdy jako HTML,
+    // - odkaz si skládáme sami z pevného začátku + ověřeného jména,
+    // - neplatné jméno = žádný štítek.
+    function showAuthor(handle) {
+      const valid = typeof handle === "string" && IG_HANDLE.test(handle);
+      cardAuthor.hidden = !valid;
+      if (!valid) {
+        cardAuthor.removeAttribute("href");
+        cardAuthor.textContent = "";
+        return;
+      }
+      cardAuthor.href = "https://www.instagram.com/" + encodeURIComponent(handle) + "/";
+      cardAuthor.textContent = "Quest od @" + handle + " 💌";
+    }
+
+    function showOnCard(levelText, text, category, budget, author) {
+      showAuthor(author);
       cardLevel.textContent = levelText;
       cardCategory.textContent = categoryName(category);
       cardCategory.hidden = !cardCategory.textContent;
@@ -1013,6 +1086,7 @@
       doneButton.hidden = true;
       undoButton.hidden = true;
       cardTags.hidden = true;
+      showAuthor(null);
       cardLevel.textContent = "";
       questText.textContent =
         questsStatus === "ready" ? placeholderText :
@@ -1029,7 +1103,7 @@
       const timer = setTimeout(() => controller.abort(), 10000);
       try {
         const response = await fetch(
-          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,budget,text&order=id",
+          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,budget,text,author_instagram&order=id",
           { headers: { apikey: SUPABASE_KEY }, signal: controller.signal }
         );
         if (!response.ok) throw new Error("Supabase odpověděl " + response.status);
@@ -1039,7 +1113,7 @@
         // Roztřídíme řádky z databáze do stejného tvaru, jaký měl dřív quests.js
         const loaded = { easy: [], medium: [], hard: [] };
         rows.forEach(row => {
-          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, budget: row.budget, text: row.text });
+          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, budget: row.budget, text: row.text, author: row.author_instagram });
         });
         QUESTS = loaded;
         questsStatus = "ready";
@@ -1251,12 +1325,12 @@
         quest = list[Math.floor(Math.random() * list.length)];
       } while (list.length > 1 && quest.id === lastQuestId);
       lastQuestId = quest.id;
-      currentQuest = { level: currentLevel, id: quest.id, text: quest.text, category: quest.category, budget: quest.budget };
+      currentQuest = { level: currentLevel, id: quest.id, text: quest.text, category: quest.category, budget: quest.budget, author: quest.author };
 
       doneButton.textContent = "Hotovo ✓";
       doneButton.disabled = false;
       doneButton.hidden = false;
-      showOnCard(levelNames[currentLevel] + " úroveň", quest.text, quest.category, quest.budget);
+      showOnCard(levelNames[currentLevel] + " úroveň", quest.text, quest.category, quest.budget, quest.author);
     });
 
     // Kliknutí na "Hotovo ✓": uloží ID questu jako splněné
@@ -1297,7 +1371,7 @@
       doneButton.textContent = "Hotovo ✓";
       doneButton.disabled = false;
       doneButton.hidden = false;
-      showOnCard(levelNames[quest.level] + " úroveň", quest.text, quest.category, quest.budget);
+      showOnCard(levelNames[quest.level] + " úroveň", quest.text, quest.category, quest.budget, quest.author);
     });
 
     // "Začít znovu": po potvrzení smaže všechny splněné questy
@@ -1412,6 +1486,18 @@
     const feedbackInstagram = document.getElementById("feedback-instagram");
     const feedbackStatus = document.getElementById("feedback-status");
     const feedbackSend = document.getElementById("feedback-send");
+    const feedbackConsent = document.getElementById("feedback-consent");
+    const feedbackConsentCheck = document.getElementById("feedback-consent-check");
+
+    // Instagram z formuláře bez úvodního "@" a mezer
+    function feedbackInstagramValue() {
+      return feedbackInstagram.value.trim().replace(/^@+/, "").slice(0, 50);
+    }
+
+    // Souhlas s podpisem se ptáme jen u návrhu questu s vyplněným Instagramem
+    function consentAsked() {
+      return feedbackType === "quest" && feedbackInstagramValue() !== "";
+    }
 
     let feedbackType = "";          // "chyba" / "zpetna_vazba" / "quest", na začátku nic
     let feedbackSending = false;    // právě se odesílá (proti dvojkliku)
@@ -1458,6 +1544,7 @@
         b.setAttribute("aria-pressed", on ? "true" : "false");
       });
       feedbackDeviceNote.hidden = feedbackType !== "chyba";
+      feedbackConsent.hidden = !consentAsked();
       feedbackCounter.textContent = feedbackMessage.value.length + "/500";
       feedbackSend.disabled = feedbackSending || !feedbackType || !feedbackMessage.value.trim();
       feedbackSend.textContent = feedbackSending ? "Odesílám… ✨" : "Odeslat 💌";
@@ -1470,6 +1557,7 @@
       });
     });
     feedbackMessage.addEventListener("input", renderFeedback);
+    feedbackInstagram.addEventListener("input", renderFeedback);
 
     // Odeslání zprávy
     feedbackForm.addEventListener("submit", async e => {
@@ -1484,13 +1572,15 @@
         return;
       }
 
-      const instagram = feedbackInstagram.value.trim().replace(/^@+/, "").slice(0, 50);
+      const instagram = feedbackInstagramValue();
       const row = {
         type: feedbackType,
         message: message.slice(0, 500),
         instagram: instagram || null,
         device_info: feedbackType === "chyba" ? deviceInfo() : null
       };
+      // Souhlas posíláme jen tam, kde jsme se na něj ptali (ano / ne)
+      if (consentAsked()) row.consent_credit = feedbackConsentCheck.checked;
 
       feedbackSending = true;
       showFeedbackStatus("");
@@ -1517,6 +1607,7 @@
         feedbackType = "";
         feedbackMessage.value = "";
         feedbackInstagram.value = "";
+        feedbackConsentCheck.checked = false;
         feedbackForm.hidden = true;
         feedbackThanks.hidden = false;
       } catch (err) {
