@@ -1470,9 +1470,10 @@
     const FEEDBACK_KEY = "sideQuestFeedbackSent";  // čas posledního odeslání (ochrana proti spamu)
     const FEEDBACK_WAIT = 30;                       // sekund mezi dvěma zprávami
 
-    // Poděkování po odeslání (návrh questu má vlastní text)
+    // Poděkování po odeslání (návrh questu má vlastní text: se souhlasem s podpisem / bez něj)
     const feedbackThanksTexts = {
-      quest: "Děkuju moc, zpráva dorazila! 💌\nPokud jsi vyplnila IG, budu tě kontaktovat ohledně přidání tebou navrženého questu do aplikace. Pokud ne, bude přidán bez tvého podpisu.",
+      questCredit: "Děkuju moc, zpráva dorazila! 💌\nKdyž tvůj quest přidám, bude u něj tvůj Instagram. Tak sleduj appku, třeba ho brzy potkáš ✨",
+      quest: "Děkuju moc, zpráva dorazila! 💌\nKdyž tvůj quest přidám, objeví se v appce bez podpisu.",
       other: "Děkuju moc, zpráva dorazila! 💌\nKaždá zpětná vazba mi pomáhá appku vylepšovat."
     };
 
@@ -1603,7 +1604,8 @@
         // Povedlo se: poděkujeme a formulář vyčistíme
         rememberFeedbackTime();
         document.getElementById("feedback-thanks-text").textContent =
-          feedbackThanksTexts[row.type] || feedbackThanksTexts.other;
+          row.consent_credit === true ? feedbackThanksTexts.questCredit
+          : feedbackThanksTexts[row.type] || feedbackThanksTexts.other;
         feedbackType = "";
         feedbackMessage.value = "";
         feedbackInstagram.value = "";
