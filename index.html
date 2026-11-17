@@ -316,9 +316,51 @@
     /* ===== Tlačítka pod questem ("Hotovo ✓" a "Zpět") ===== */
     .card-actions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       align-items: center;
+      gap: 0 12px;
+    }
+
+    /* ===== Tlačítka "Sdílet 📤" (na kartě a v deníku) ===== */
+    .share-open {
+      margin-top: 20px;
+      min-height: 40px;
+      padding: 6px 16px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: var(--cream);
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    @media (hover: hover) {
+      .share-open:hover { background: var(--wine); color: var(--cream); }
+    }
+
+    /* V deníku je tlačítko vpravo vedle textu questu */
+    .journal li {
+      display: flex;
+      align-items: center;
       gap: 12px;
+    }
+
+    .journal-item-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .journal .share-open {
+      flex-shrink: 0;
+      margin: 0;
+      min-height: 36px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      white-space: nowrap;
     }
 
     .done {
@@ -721,6 +763,87 @@
     }
 
     /* Úzké obrazovky (mobil) */
+    /* ===== Okno "Sdílet" ===== */
+    .share-preview {
+      display: block;
+      width: min(220px, 62%);
+      height: auto;
+      aspect-ratio: 9 / 16;
+      margin: 4px auto 0;
+      border-radius: 16px;
+      background: var(--wine);
+      box-shadow: 0 8px 24px rgba(53, 33, 31, 0.3);
+    }
+
+    .share-photo-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 4px 16px;
+      margin-top: 20px;
+    }
+
+    .share-photo-button {
+      min-height: 44px;
+      padding: 8px 18px;
+      border: 2px solid var(--wine);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .share-photo-button:hover { background: var(--pink); }
+    }
+
+    /* Nenápadný odkaz "Bez fotky" (jen když je vybraná fotka) */
+    .share-link {
+      min-height: 44px;
+      padding: 4px;
+      border: none;
+      background: none;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      opacity: 0.8;
+      cursor: pointer;
+    }
+
+    .share .filter-options { justify-content: center; }
+
+    .share-status {
+      margin: 12px 0 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--wine);
+      text-align: center;
+    }
+
+    .share-privacy {
+      margin: 14px 0 0;
+      font-size: 0.8rem;
+      text-align: center;
+      opacity: 0.75;
+    }
+
+    /* Menší druhé tlačítko "Stáhnout jen kartičku" */
+    .share .filters-reset {
+      min-height: 44px;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+    }
+
+    .share .filters-confirm:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
     @media (max-width: 420px) {
       .level { font-size: 0.85rem; height: 44px; padding: 0 4px; }
       .levels { gap: 8px; }
@@ -778,6 +901,8 @@
       <a class="card-author" id="card-author" target="_blank" rel="noopener noreferrer" hidden></a>
       <div class="card-actions">
         <button class="done" id="done" hidden>Hotovo ✓</button>
+        <!-- "Sdílet 📤" je vidět vždy zároveň se "Zpět" (sdílí právě splněný quest) -->
+        <button class="share-open" id="share-card" hidden>Sdílet 📤</button>
         <button class="undo" id="undo" hidden>Zpět</button>
       </div>
     </div>
@@ -820,6 +945,40 @@
         <button class="filters-confirm" id="filters-confirm">Potvrdit filtry</button>
         <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
       </div>
+    </div>
+  </dialog>
+
+  <!-- Okno "Sdílet": obrázek do Instagram story. Fotka se zpracuje jen v prohlížeči, nikam se neposílá. -->
+  <dialog class="journal filters share" id="share" aria-labelledby="share-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="share-title" tabindex="-1" autofocus>Sdílet 📤</h2>
+        <button class="icon-close" id="share-close" aria-label="Zavřít">✕</button>
+      </div>
+
+      <canvas class="share-preview" id="share-preview" width="1080" height="1920"
+              role="img" aria-label="Náhled obrázku do story"></canvas>
+
+      <div class="share-photo-row">
+        <button type="button" class="share-photo-button" id="share-photo-pick">Přidej fotku ze svého questu 📷</button>
+        <button type="button" class="share-link" id="share-photo-remove" hidden>Bez fotky</button>
+      </div>
+      <!-- Výběr fotky: telefon sám nabídne galerii i fotoaparát -->
+      <input type="file" id="share-photo-input" accept="image/*" hidden>
+
+      <h3>Kartička</h3>
+      <div class="filter-options" id="share-position">
+        <button type="button" class="category" data-pos="top" aria-pressed="false">Nahoře</button>
+        <button type="button" class="category active" data-pos="bottom" aria-pressed="true">Dole</button>
+      </div>
+
+      <p class="share-status" id="share-status" role="status" hidden></p>
+
+      <div class="filters-actions">
+        <button type="button" class="filters-confirm" id="share-send" disabled>Sdílet</button>
+        <button type="button" class="filters-reset" id="share-card-only" disabled>Stáhnout jen kartičku</button>
+      </div>
+      <p class="share-privacy">Tvoje fotka nikam neodchází 🔒</p>
     </div>
   </dialog>
 
@@ -1435,16 +1594,27 @@
         const list = document.createElement("ul");
         items.forEach(item => {
           const li = document.createElement("li");
+          const textBox = document.createElement("div");
+          textBox.className = "journal-item-text";
           const text = document.createElement("span");
           text.className = "journal-quest";
           text.textContent = item.quest.text;
-          li.appendChild(text);
+          textBox.appendChild(text);
           if (item.date) {
             const date = document.createElement("span");
             date.className = "journal-date";
             date.textContent = formatDate(item.date);
-            li.appendChild(date);
+            textBox.appendChild(date);
           }
+          li.appendChild(textBox);
+
+          // "Sdílet 📤" u každého splněného questu (okno se otevře nad deníkem)
+          const share = document.createElement("button");
+          share.className = "share-open";
+          share.textContent = "Sdílet 📤";
+          share.setAttribute("aria-label", "Sdílet quest: " + item.quest.text);
+          share.addEventListener("click", () => openShare({ ...item.quest, level }, item.date));
+          li.appendChild(share);
           list.appendChild(li);
         });
         journalList.appendChild(list);
@@ -1462,6 +1632,463 @@
     document.getElementById("journal-close").addEventListener("click", () => journal.close());
     journal.addEventListener("click", e => {
       if (e.target === journal) journal.close();
+    });
+
+    // ===== Sdílení splněného questu (obrázek do Instagram story) =====
+    // SOUKROMÍ: fotka se jen přečte a nakreslí tady v prohlížeči. Nikam se neposílá
+    // (žádný Supabase ani jiný server) a po zavření okna se zahodí.
+    const STORY_W = 1080, STORY_H = 1920;               // velikost Instagram story
+    const STORY_SAFE_TOP = 260, STORY_SAFE_BOTTOM = 320; // pruhy, kde Instagram ukazuje jméno a pole pro odpověď
+    const CARD_SIDE = 72;                                 // okraj kartičky od kraje obrázku
+    const CARD_PAD = 64;                                  // vnitřní okraj kartičky
+    const SHARE_URL = "https://katerina-g59.github.io/side-quest-app/";
+    const SHARE_TEXT = "Side quest splněný ✅ Vygeneruj si svůj: " + SHARE_URL;
+    const COLOR_WINE = "#772C3A", COLOR_CREAM = "#F4E5A7";
+
+    const shareDialog = document.getElementById("share");
+    const sharePreview = document.getElementById("share-preview");
+    const sharePhotoInput = document.getElementById("share-photo-input");
+    const sharePhotoPick = document.getElementById("share-photo-pick");
+    const sharePhotoRemove = document.getElementById("share-photo-remove");
+    const shareSendButton = document.getElementById("share-send");
+    const shareCardOnlyButton = document.getElementById("share-card-only");
+    const shareStatus = document.getElementById("share-status");
+    const shareCardButton = document.getElementById("share-card");
+
+    let shareQuest = null;      // { text, level, category, ... } – co se sdílí
+    let shareDate = null;       // datum splnění "2026-11-16" (u starších questů null)
+    let sharePhoto = null;      // fotka už oříznutá na 1080×1920 (canvas), nebo null = bez fotky
+    let sharePosition = "bottom";
+    let storyBlob = null;       // hotový obrázek story (připravený předem kvůli iPhonu)
+    let cardBlob = null;        // hotová samotná kartička (PNG s průhledným pozadím)
+    let shareRenderId = 0;      // pořadí kreslení – starší, pomalejší kreslení se zahodí
+    let shareSession = 0;       // každé otevření/zavření okna je nové "sezení" (pozdě načtená fotka se zahodí)
+
+    // "Sdílet 📤" na kartě je vidět přesně tehdy, kdy "Zpět" (sleduje jeho skrytí)
+    new MutationObserver(() => { shareCardButton.hidden = undoButton.hidden; })
+      .observe(undoButton, { attributes: true, attributeFilter: ["hidden"] });
+    shareCardButton.addEventListener("click", () => {
+      if (!lastDone) return;
+      const entry = doneEntries.find(e => e.id === lastDone.id);
+      openShare(lastDone, entry ? entry.date : todayString());
+    });
+
+    // "2026-11-16" → "16. 11." (bez roku)
+    function shortDate(date) {
+      const [, month, day] = date.split("-");
+      return Number(day) + ". " + Number(month) + ".";
+    }
+
+    // Počká na písma (Playfair Display, Montserrat) – i na české znaky. Bez internetu
+    // to po 3 sekundách vzdá a kreslí se náhradním písmem.
+    function loadShareFonts(text) {
+      const sample = text + " ✅ Splněno · Side Quest Generátor @after_hours_project_ ěščřžýáíéůú";
+      const fonts = ['700 64px "Playfair Display"', '600 32px "Montserrat"', '500 32px "Montserrat"']
+        .map(font => document.fonts.load(font, sample).catch(() => null));
+      return Promise.race([Promise.all(fonts), new Promise(r => setTimeout(r, 3000))]);
+    }
+
+    // Rozdělí text do řádků, které se vejdou do šířky (zalamuje mezi slovy;
+    // jen extrémně dlouhé slovo rozdělí uprostřed)
+    function wrapLines(ctx, text, maxWidth) {
+      const lines = [];
+      let line = "";
+      text.split(/\s+/).filter(Boolean).forEach(word => {
+        const test = line ? line + " " + word : word;
+        if (ctx.measureText(test).width <= maxWidth) { line = test; return; }
+        if (line) lines.push(line);
+        line = word;
+        while (ctx.measureText(line).width > maxWidth && line.length > 1) {
+          let cut = line.length - 1;
+          while (cut > 1 && ctx.measureText(line.slice(0, cut)).width > maxWidth) cut--;
+          lines.push(line.slice(0, cut));
+          line = line.slice(cut);
+        }
+      });
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    // Spočítá rozložení kartičky (velikost písma questu, řádky, výšku)
+    function layoutCard(ctx, quest, width) {
+      const inner = width - CARD_PAD * 2;
+      // Písmo questu: 72 px, u dlouhých questů menší (nejmíň 44 px), aby bylo nejvýš 5 řádků
+      let size = 72, lines;
+      for (;;) {
+        ctx.font = '700 ' + size + 'px "Playfair Display", Georgia, serif';
+        lines = wrapLines(ctx, quest.text, inner);
+        if (lines.length <= 5 || size <= 44) break;
+        size -= 4;
+      }
+      const lineHeight = Math.round(size * 1.25);
+      const pills = [levelNames[quest.level], categoryName(quest.category)].filter(Boolean);
+      const height = CARD_PAD + 40 + 32 + lines.length * lineHeight + 36
+                   + (pills.length ? 60 + 40 : 0) + 34 + CARD_PAD;
+      return { width, inner, size, lines, lineHeight, pills, height };
+    }
+
+    // Nakreslí kartičku na pozici (x, y). opaque = plná vínová (samotná kartička),
+    // jinak poloprůhledná přes fotku.
+    function drawCard(ctx, layout, x, y, opaque) {
+      ctx.save();
+      if (!opaque) {
+        ctx.shadowColor = "rgba(53, 33, 31, 0.35)";
+        ctx.shadowBlur = 40;
+        ctx.shadowOffsetY = 12;
+      }
+      roundRect(ctx, x, y, layout.width, layout.height, 48);
+      ctx.fillStyle = opaque ? COLOR_WINE : "rgba(119, 44, 58, 0.86)";
+      ctx.fill();
+      ctx.restore();
+
+      const left = x + CARD_PAD;
+      let cy = y + CARD_PAD;
+      ctx.textBaseline = "top";
+      ctx.textAlign = "left";
+
+      // Nahoře: "✅ Splněno · 16. 11."
+      ctx.fillStyle = "rgba(244, 229, 167, 0.85)";
+      ctx.font = '600 32px "Montserrat", Arial, sans-serif';
+      ctx.fillText("✅ Splněno" + (shareDate ? " · " + shortDate(shareDate) : ""), left, cy);
+      cy += 40 + 32;
+
+      // Text questu
+      ctx.fillStyle = COLOR_CREAM;
+      ctx.font = '700 ' + layout.size + 'px "Playfair Display", Georgia, serif';
+      layout.lines.forEach(line => {
+        ctx.fillText(line, left, cy + (layout.lineHeight - layout.size) / 2);
+        cy += layout.lineHeight;
+      });
+      cy += 36;
+
+      // Štítky: úroveň a kategorie (krémové s vínovým textem)
+      if (layout.pills.length) {
+        ctx.font = '600 28px "Montserrat", Arial, sans-serif';
+        let px = left;
+        layout.pills.forEach(label => {
+          const w = ctx.measureText(label).width + 48;
+          roundRect(ctx, px, cy, w, 60, 30);
+          ctx.fillStyle = COLOR_CREAM;
+          ctx.fill();
+          ctx.fillStyle = COLOR_WINE;
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, px + 24, cy + 31);
+          ctx.textBaseline = "top";
+          px += w + 16;
+        });
+        cy += 60 + 40;
+      }
+
+      // Dole: podpis appky
+      ctx.fillStyle = "rgba(244, 229, 167, 0.8)";
+      let footSize = 28;
+      const foot = "Side Quest Generátor · @after_hours_project_";
+      do {
+        ctx.font = '500 ' + footSize + 'px "Montserrat", Arial, sans-serif';
+      } while (ctx.measureText(foot).width > layout.inner && --footSize > 18);
+      ctx.fillText(foot, left, cy);
+    }
+
+    // Jednoduché "náhodné" číslo se semínkem – hvězdičky jsou pokaždé na stejném místě
+    function seededRandom(seed) {
+      return () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      };
+    }
+
+    // Pozadí bez fotky: vínová s jemnými ručně kreslenými hvězdičkami
+    function drawBrandBackground(ctx) {
+      const glow = ctx.createRadialGradient(STORY_W / 2, STORY_H * 0.38, 100, STORY_W / 2, STORY_H * 0.45, STORY_H * 0.75);
+      glow.addColorStop(0, "#8C3747");
+      glow.addColorStop(1, "#5E2230");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, STORY_W, STORY_H);
+
+      const rand = seededRandom(20261116);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      for (let i = 0; i < 26; i++) {
+        const cx = rand() * STORY_W, cy = rand() * STORY_H;
+        const r = 22 + rand() * 60;
+        const rot = rand() * Math.PI;
+        ctx.strokeStyle = "rgba(244, 229, 167, " + (0.10 + rand() * 0.16).toFixed(2) + ")";
+        ctx.lineWidth = 3 + rand() * 3;
+        ctx.beginPath();
+        for (let p = 0; p <= 10; p++) {
+          const radius = (p % 2 === 0 ? r : r * 0.45) * (0.9 + rand() * 0.2);  // trochu "roztřesené" jako od ruky
+          const angle = rot + p * Math.PI / 5 - Math.PI / 2;
+          const px = cx + Math.cos(angle) * radius, py = cy + Math.sin(angle) * radius;
+          p === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      // pár drobných teček na doplnění
+      for (let i = 0; i < 40; i++) {
+        ctx.fillStyle = "rgba(244, 229, 167, " + (0.15 + rand() * 0.2).toFixed(2) + ")";
+        ctx.beginPath();
+        ctx.arc(rand() * STORY_W, rand() * STORY_H, 2 + rand() * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Nakreslí celou story (pozadí nebo fotka + kartička nahoře/dole)
+    function drawStory(ctx) {
+      if (sharePhoto) ctx.drawImage(sharePhoto, 0, 0);
+      else drawBrandBackground(ctx);
+
+      const layout = layoutCard(ctx, shareQuest, STORY_W - CARD_SIDE * 2);
+      const y = sharePosition === "top"
+        ? STORY_SAFE_TOP
+        : Math.max(STORY_SAFE_TOP, STORY_H - STORY_SAFE_BOTTOM - layout.height);
+      drawCard(ctx, layout, CARD_SIDE, y, false);
+    }
+
+    // Samotná kartička na průhledném pozadí (PNG "nálepka")
+    function drawCardOnly() {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const layout = layoutCard(ctx, shareQuest, STORY_W - CARD_SIDE * 2);
+      canvas.width = layout.width;
+      canvas.height = layout.height;
+      drawCard(ctx, layout, 0, 0, true);
+      return canvas;
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+    }
+
+    // Překreslí náhled a rovnou připraví oba hotové obrázky (Sdílet pak funguje hned po klepnutí)
+    async function renderShare() {
+      const id = ++shareRenderId;
+      storyBlob = null;
+      cardBlob = null;
+      shareSendButton.disabled = true;
+      shareCardOnlyButton.disabled = true;
+      shareSendButton.textContent = "Připravuju obrázek…";
+
+      await loadShareFonts(shareQuest.text);
+      if (id !== shareRenderId) return;
+
+      const ctx = sharePreview.getContext("2d");
+      ctx.clearRect(0, 0, STORY_W, STORY_H);
+      drawStory(ctx);
+
+      const [story, cardOnly] = await Promise.all([
+        canvasToBlob(sharePreview, "image/jpeg", 0.92),
+        canvasToBlob(drawCardOnly(), "image/png")
+      ]);
+      if (id !== shareRenderId) return;
+      storyBlob = story;
+      cardBlob = cardOnly;
+      shareSendButton.textContent = "Sdílet";
+      shareSendButton.disabled = !storyBlob;
+      shareCardOnlyButton.disabled = !cardBlob;
+    }
+
+    function showShareStatus(text) {
+      shareStatus.textContent = text;
+      shareStatus.hidden = !text;
+    }
+
+    // Otevře okno "Sdílet" pro daný quest (z karty nebo z deníku)
+    function openShare(quest, date) {
+      shareSession++;
+      shareQuest = quest;
+      shareDate = date || null;
+      sharePhoto = null;
+      sharePhotoInput.value = "";
+      sharePhotoRemove.hidden = true;
+      sharePhotoPick.textContent = "Přidej fotku ze svého questu 📷";
+      setSharePosition("bottom");
+      showShareStatus("");
+      shareDialog.showModal();
+      shareDialog.scrollTop = 0;
+      renderShare();
+    }
+
+    function setSharePosition(pos) {
+      sharePosition = pos;
+      document.querySelectorAll("#share-position .category").forEach(b => {
+        const on = b.dataset.pos === pos;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+    }
+
+    document.querySelectorAll("#share-position .category").forEach(b => {
+      b.addEventListener("click", () => {
+        if (b.dataset.pos === sharePosition) return;
+        setSharePosition(b.dataset.pos);
+        renderShare();
+      });
+    });
+
+    // Načte fotku jen v prohlížeči: obrázek se otočí podle údajů z fotoaparátu (iPhone),
+    // ořízne se na střed a rovnou zmenší na 1080×1920, takže velké fotky nezahltí paměť.
+    async function loadSharePhoto(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.style.imageOrientation = "from-image";
+        img.src = url;
+        await img.decode();
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) throw new Error("Prázdný obrázek");
+        const scale = Math.max(STORY_W / w, STORY_H / h);      // "cover": vyplní celý obrázek
+        const dw = w * scale, dh = h * scale;
+        const canvas = document.createElement("canvas");
+        canvas.width = STORY_W;
+        canvas.height = STORY_H;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, (STORY_W - dw) / 2, (STORY_H - dh) / 2, dw, dh);
+        img.src = "";
+        return canvas;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    sharePhotoPick.addEventListener("click", () => sharePhotoInput.click());
+    sharePhotoInput.addEventListener("change", async () => {
+      const file = sharePhotoInput.files && sharePhotoInput.files[0];
+      sharePhotoInput.value = "";
+      if (!file) return;
+      const session = shareSession;
+      showShareStatus("Načítám fotku…");
+      let photo = null;
+      try {
+        photo = await loadSharePhoto(file);
+      } catch (e) {}
+      if (session !== shareSession) return;  // okno se mezitím zavřelo: fotku zahodíme
+      if (photo) {
+        sharePhoto = photo;
+        sharePhotoRemove.hidden = false;
+        sharePhotoPick.textContent = "Změnit fotku 📷";
+        showShareStatus("");
+      } else {
+        showShareStatus("Tuhle fotku se nepodařilo načíst 😕 Zkus jinou.");
+      }
+      renderShare();
+    });
+
+    sharePhotoRemove.addEventListener("click", () => {
+      sharePhoto = null;
+      sharePhotoRemove.hidden = true;
+      sharePhotoPick.textContent = "Přidej fotku ze svého questu 📷";
+      renderShare();
+    });
+
+    // Stáhne soubor (na počítači)
+    function downloadFile(file) {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    // Zkopíruje text do schránky (když moderní cesta nefunguje nebo trvá déle než 1,5 s,
+    // použije starší náhradní cestu)
+    async function copyText(text) {
+      try {
+        await Promise.race([
+          navigator.clipboard.writeText(text),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Schránka neodpověděla")), 1500))
+        ]);
+        return true;
+      } catch (e) {
+        const area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        shareDialog.appendChild(area);
+        area.select();
+        let ok = false;
+        try { ok = document.execCommand("copy"); } catch (e2) {}
+        area.remove();
+        return ok;
+      }
+    }
+
+    // Umí tohle zařízení poslat soubor přes nabídku sdílení?
+    function canShareFile(file) {
+      try {
+        return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [file] }));
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // "Sdílet": nabídka sdílení telefonu (obrázek + text). Kde to nejde: stáhnout + zkopírovat text.
+    shareSendButton.addEventListener("click", async () => {
+      if (!storyBlob) return;
+      showShareStatus("");
+      const file = new File([storyBlob], "side-quest-story.jpg", { type: "image/jpeg" });
+      if (canShareFile(file)) {
+        try {
+          await navigator.share({ files: [file], text: SHARE_TEXT });
+        } catch (e) {
+          // Zavřená nabídka sdílení není chyba; jiná chyba → aspoň stáhnout
+          if (e && e.name !== "AbortError") {
+            downloadFile(file);
+            showShareStatus((await copyText(SHARE_TEXT)) ? "Obrázek se stáhl, text je zkopírovaný ✓" : "Obrázek se stáhl ✓");
+          }
+        }
+        return;
+      }
+      downloadFile(file);
+      showShareStatus((await copyText(SHARE_TEXT)) ? "Zkopírováno ✓" : "Obrázek se stáhl ✓");
+    });
+
+    // "Stáhnout jen kartičku": na telefonu nabídka sdílení (tam je "Uložit obrázek" do Fotek),
+    // na počítači obyčejné stažení
+    shareCardOnlyButton.addEventListener("click", async () => {
+      if (!cardBlob) return;
+      showShareStatus("");
+      const file = new File([cardBlob], "side-quest-karticka.png", { type: "image/png" });
+      const isPhone = window.matchMedia("(pointer: coarse)").matches;
+      if (isPhone && canShareFile(file)) {
+        try {
+          await navigator.share({ files: [file] });
+        } catch (e) {
+          if (e && e.name !== "AbortError") downloadFile(file);
+        }
+        return;
+      }
+      downloadFile(file);
+      showShareStatus("Kartička se stáhla ✓");
+    });
+
+    // Zavření okna (✕, klávesa Esc, klepnutí vedle): fotka se zahodí
+    document.getElementById("share-close").addEventListener("click", () => shareDialog.close());
+    shareDialog.addEventListener("click", e => {
+      if (e.target === shareDialog) shareDialog.close();
+    });
+    shareDialog.addEventListener("close", () => {
+      shareSession++;
+      shareRenderId++;
+      sharePhoto = null;
+      storyBlob = null;
+      cardBlob = null;
+      sharePhotoInput.value = "";
+      sharePreview.getContext("2d").clearRect(0, 0, STORY_W, STORY_H);
     });
 
     // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====

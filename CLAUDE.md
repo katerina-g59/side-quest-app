@@ -60,6 +60,49 @@ A small web page that gives overwhelmed young women working in corporate a rando
 - „Zpět" next to it undoes that one completion. It stays available until you generate
   a new quest, switch level or reset (also under the celebration message, if it was
   the last quest of a level).
+- **„Sdílet 📤" (Instagram-story image, Nov 2026):**
+  - Where: on the card, next to „Zpět", visible exactly when „Zpět" is (a
+    `MutationObserver` copies `undo`'s `hidden`; shares `lastDone`). In the deník, a
+    button on every completed quest; the share popup opens on top of the deník.
+  - Popup (Filtry style: ✕, tap outside, Esc), top to bottom:
+    - live preview (`<canvas id="share-preview">`, 1080×1920 shown small)
+    - „Přidej fotku ze svého questu 📷" (`<input type=file accept="image/*">`, so the
+      phone offers gallery + camera); with a photo: „Změnit fotku 📷" + link „Bez fotky"
+    - „Kartička" Nahoře / Dole (default Dole)
+    - „Sdílet" (primary)
+    - „Stáhnout jen kartičku" (smaller secondary)
+    - „Tvoje fotka nikam neodchází 🔒"
+  - Image 1080×1920:
+    - **Background:** the photo (cover, centre crop) or, without a photo, a wine
+      gradient with faint hand-drawn cream stars (seeded random, so always the same).
+    - **Photo handling:** it's decoded with an `<img>`, so the browser applies iPhone
+      rotation (EXIF), then drawn straight into one 1080×1920 canvas, so huge photos
+      don't stay in memory.
+    - **Card:** semi-transparent wine (`rgba(119,44,58,0.86)`), radius 48, 72 px side
+      margin. Contents:
+      - „✅ Splněno · 16. 11." (no date for old undated quests)
+      - the quest in cream Playfair Display 700: 72 px, shrinking by 4 down to 44 px to
+        stay within 5 lines; wraps between words
+      - pills for level + category
+      - „Side Quest Generátor · @after_hours_project_" in Montserrat
+    - **Card position:** kept out of Instagram's top 260 px and bottom 320 px.
+    - **Fonts:** waits for `document.fonts.load` (with the quest text, so Czech letters
+      load too), max 3 s, then draws with fallback fonts.
+  - **Both images are prepared in advance** after every change (`storyBlob` JPEG,
+    `cardBlob` PNG). iPhones only allow `navigator.share` right after a tap; „Sdílet"
+    says „Připravuju obrázek…" and is disabled until then.
+  - „Sdílet":
+    - If the device can share files: `navigator.share({ files, text })` with
+      „Side quest splněný ✅ Vygeneruj si svůj: <live URL>" (Instagram ignores the text).
+    - Otherwise: the JPEG downloads, the text is copied, and it shows „Zkopírováno ✓"
+      (or „Obrázek se stáhl ✓" if copying isn't allowed).
+  - „Stáhnout jen kartičku": the card only, **fully opaque** wine, on a transparent PNG.
+    On a phone (`pointer: coarse` + can share files) it opens the share menu, because
+    "Uložit obrázek" puts it in Photos; on a computer it's a normal download.
+  - **Privacy (never break):** the photo is only read and drawn in the browser. No
+    upload, no Supabase, no other server. On closing the popup (`close` event) the
+    photo and images are dropped. A photo still loading when the popup closes is
+    thrown away (`shareSession`).
 - Switching to a different level clears the card. Clicking the already selected level
   does nothing.
 - „Můj deník 📖" (under the card) opens the quest journal: a window listing all
@@ -272,7 +315,10 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
    - All localStorage access is wrapped in try/catch, so the app still works when
      storage is blocked (it just doesn't remember).
    - Progress is per browser and per device.
-4. **All quest text and UI text is in Czech.** The quests are written for women,
+4. **Users' photos never leave the browser.** The share feature draws them locally
+   (canvas) and only the user sends the finished image, through her own share menu.
+   Never upload, log or store a photo anywhere.
+5. **All quest text and UI text is in Czech.** The quests are written for women,
    so use feminine verb forms (e.g. „nebyla", „vděčná"). Code comments in the files
    are in Czech too.
 
@@ -294,6 +340,18 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     confirming discards, Zrušit filtry cancels everything at once, tags, both "nothing matches"
     messages), Hotovo / Zpět and deník work
   - a copy with a wrong `SUPABASE_URL` shows the friendly error, and the button retries
+  - „Sdílet 📤":
+    - The button shows and hides with „Zpět", and the deník has one per quest.
+    - The image is 1080×1920 with the card top/bottom inside the safe zone, and a long
+      quest fits at 44 px or more.
+    - The card-only PNG has transparent corners.
+    - A JPEG with EXIF orientation 6 comes out upright, and an 8000×6000 photo works.
+    - The share / fallback paths work (stub `navigator.share` / `canShare`).
+    - The only network requests are fonts and the Supabase quests read.
+    - Test photos go in as base64 in a `.js` file, set via `DataTransfer` on the input.
+    - Headless Edge's `--virtual-time-budget` doesn't wait for decoding big images or
+      `createImageBitmap`: give it real time (a busy loop) or check the canvases
+      directly.
   - „Napiš mi 💌": send stays faded without type/text, counter, bug note only for
     „Chyba 🐛", thank-you after sending, error keeps the text, 30 s wait message
 - After any database change, recheck with the publishable key (e.g. `curl`) that
@@ -323,6 +381,9 @@ writing code.
   Webhook → Edge Function `feedback-email` → Resend, see above.
 - ~~**Multi-select in filters**~~ – done (Nov 2026): several options per section, one tag
   per option.
+- ~~**Sharing a completed quest as an Instagram story**~~ – done (Nov 2026): „Sdílet 📤".
+- **Freely movable card on the share image (drag with a finger)**, instead of only
+  Nahoře / Dole.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
