@@ -4,6 +4,59 @@
 A small web page that gives overwhelmed young women working in corporate a random
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
+- **„🌟 Quest dne" (Nov 2026):** one shared quest for everyone per day.
+  - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne" next
+    to „Můj deník 📖" under the card (`.extras` row). It becomes „🌟 Quest dne ✓" when
+    today's is done. The owner rejected a big wine card at the top: the app felt heavy
+    and samey. Keep it subtle.
+  - Tapping the pill opens a popup (`<dialog id="daily">`, Filtry style: ✕, tap
+    outside, Esc). It shows „Jeden společný quest pro všechny na dnešek." and a pink
+    card like the main one.
+  - The popup card:
+    - shows labels for level (or „🌟 Speciální quest"), category and budget
+    - ignores filters
+    - if quests can't load, shows „Quest dne se teď nepodařilo načíst 😕" and the rest
+      of the app works
+  - „Hotovo ✓" works like on the normal card (deník with date, level progress).
+    Afterwards it shows „Splněno 🎉" + „Sdílet 📤" + „Zpět" (`dailyJustDone`).
+  - If it was completed earlier (or after a reload): „Tenhle už máš splněný ✓" +
+    „Sdílet 📤". `updateProgress()` calls `renderDaily()`, so completing/undoing it on
+    the normal card, or „Začít znovu", updates this card too.
+  - **Date:** Czech date via `Intl` `timeZone: "Europe/Prague"` (`pragueDate()`); it
+    changes at midnight, checked every minute and when the app comes back to the screen.
+  - **Testing only:** `?datum=2026-11-27` in the address shows that day's Quest dne
+    (special days included) with „Náhled pro 27. 11. 2026". An invalid date is ignored.
+    „Hotovo" in a preview still saves the real date.
+  - **How it's chosen** (`refreshDaily()`):
+    1. A special day in `daily_quest_overrides` for that date wins (any quest, any
+       level/budget, normal or special-only). If that table can't be read, the
+       automatic one is used.
+    2. Otherwise `automaticDailyQuest(date)`, a "shuffled deck in rounds".
+  - **The automatic deck:**
+    - Pool: easy + medium, budget zdarma / do500, not special-only (66 quests in Nov 2026).
+    - Rounds start at `DAILY_START = "2026-11-01"` (**never change it**, or every day's
+      Quest dne changes).
+    - Each round uses only quests with `added_on` **before** the round's first day, in
+      an order shuffled by `hash32(round + ":" + id)` (FNV-1a, the same on every device),
+      one per day, no repeats. A round lasts as many days as it has quests.
+    - Quests from the second half of the previous round are moved to the end of the
+      next round, so a quest comes back after at least ~a month (34 days in a 3-year
+      test) and never two days in a row.
+  - **Trade-off the owner chose:**
+    - Adding a quest never changes today or the rest of the round; it joins the next
+      round.
+    - Removing a quest (or making it no longer eligible) shifts the current round:
+      today's Quest dne changed in 20 of 66 test cases (~30 %).
+    - Making an old quest newly eligible (e.g. budget vicnez500 → do500) works like
+      adding it *now*, so also set its `added_on` to today, and it waits for the next
+      round.
+  - **Special-only quests** (`special_only = true`, kept in `SPECIAL_QUESTS`, not in
+    `QUESTS`): shown only as the Quest dne on their special day.
+    - Not counted in „Splněno X/Y", never picked by „Dej mi side quest ✨", filters or
+      the automatic deck.
+    - Completed ones get their own deník section „🌟 Speciální questy · N" (only shown
+      when there's at least one).
+    - On the share image their pill says „🌟 Speciální quest".
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
 - **Filters:** a round icon button (sliders icon, inline SVG, wine on cream; label
   „Filtry" for screen readers) at the end of the Lehká / Střední / Těžká row opens a popup
@@ -156,8 +209,12 @@ A small web page that gives overwhelmed young women working in corporate a rando
   - `BUDGETS` does the same for budget: `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸",
     `vicnez500` „Víc než 500 Kč 💰".
   - `loadQuests()` fetches the quests and sorts them into `QUESTS` =
-    `{ easy: [...], medium: [...], hard: [...] }`, each `{ id, category, budget, text, author }`
-    (`author` = `author_instagram`, usually empty).
+    `{ easy: [...], medium: [...], hard: [...] }`, each
+    `{ id, level, category, budget, text, author, addedOn, special }`
+    (`author` = `author_instagram`, usually empty). Special-only quests go into
+    `SPECIAL_QUESTS` instead, never into `QUESTS`.
+  - Quest dne: `DAILY_START`, `DAILY_LEVELS`, `DAILY_BUDGETS`, `pragueDate()`,
+    `automaticDailyQuest()`, `refreshDaily()`, `renderDaily()`.
   - Filter state: `currentCategories` / `currentBudgets`, lists of codes in
     `CATEGORIES` / `BUDGETS` order (empty list = Všechny); `matchesFilters(quest)` decides
     what can be picked, `toggleDraft()` holds the „Všechny" rules, `removeFilter()` is
@@ -188,7 +245,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 - `budget` is required (NOT NULL) and only allows 3 codes (constraint `quests_budget_check`):
   `zdarma` „Zdarma 🆓", `do500` „Do 500 Kč 💸", `vicnez500` „Víc než 500 Kč 💰".
   The display names live in `BUDGETS` in `index.html` (used by the Budget filter and
-  the card label). The app selects `id, level, category, budget, text, author_instagram`.
+  the card label). The app selects `id, level, category, budget, text, author_instagram,
+  added_on, special_only`, and reads `daily_quest_overrides` for the Quest dne.
 - `author_instagram` (optional): the Instagram of the woman who suggested the quest,
   without @. Constraint `quests_author_instagram_check` allows only
   `^[A-Za-z0-9._]{1,30}$`. Added by `add-credit.sql`; reading rights unchanged.
@@ -199,7 +257,32 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   `setup.sql` (table, security, first 96 quests) → `add-budget.sql` (budget column +
   allowed values) → `fill-budget.sql` (budgets by ID, then NOT NULL) →
   `add-feedback.sql` (feedback table, insert-only) → `add-credit.sql`
-  (`quests.author_instagram`, `feedback.consent_credit`). All are safe to re-run.
+  (`quests.author_instagram`, `feedback.consent_credit`) → `add-daily-quest.sql`
+  (`quests.added_on`, `quests.special_only`, table `daily_quest_overrides`; run
+  20 Nov 2026). All are safe to re-run.
+- `added_on` (date, NOT NULL): when the quest was added. Existing quests have
+  2026-01-01; the default for new rows is today's Czech date
+  (`(now() at time zone 'Europe/Prague')::date`). It's used by the Quest dne deck.
+- `special_only` (yes/no, default no): a quest that appears **only** as the Quest dne on
+  its special day (Den matek, best friends day…). It still needs a normal ID, level,
+  category and budget (same ID rules: next free number in its level), but it isn't
+  counted in that level. Note: the public key can read these too, so a curious person
+  could see future special quests in the API; that's fine.
+- **Table `daily_quest_overrides` (special days):** `date` (primary key, one row per
+  date) and `quest_id` (must exist in `quests`; `on delete cascade`, so deleting the
+  quest removes its special day).
+  - Security: RLS on, `anon` has **only** `GRANT SELECT`, plus one policy „Kdokoli může
+    číst speciální dny" (`for select to anon using (true)`). Checked 20 Nov 2026:
+    insert / update / delete get `401`.
+- **Adding a special day (owner's steps):**
+  1. *(Optional, for a special-only quest)* Table Editor → `quests` → Insert row: the
+     next free `id` in a level (e.g. `easy-044`), `level`, `category`, `budget`, `text`,
+     and tick **`special_only`** (true). `added_on` fills in by itself.
+  2. Table Editor → `daily_quest_overrides` → Insert row: `date` (e.g. `2027-05-09`)
+     and `quest_id` (e.g. `easy-044`, or any normal quest's ID). Save.
+  3. Check it in the app with `?datum=2027-05-09` at the end of the address, e.g.
+     https://katerina-g59.github.io/side-quest-app/?datum=2027-05-09
+  - A special day doesn't shift the automatic deck: the next day continues normally.
   A new column the app asks for must exist **before** the app version using it is pushed
   (otherwise quest loading / sending fails).
 - **Adding or fixing a quest:** Supabase → Table Editor → `quests` → Insert row (or edit
@@ -352,6 +435,22 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     - Headless Edge's `--virtual-time-budget` doesn't wait for decoding big images or
       `createImageBitmap`: give it real time (a busy loop) or check the canvases
       directly.
+  - Quest dne:
+    - **Simulate 3 years:** the same date gives the same quest, no repeats within a
+      round, every quest once per round, the gap before a repeat is ≥ 30 days, and
+      only the right pool is used.
+    - **Prague midnight:** check winter, summer and both clock-change days.
+    - **Stability:** adding a fake quest with `added_on` = today changes nothing until
+      the next round; removing a quest changes today in ~30 %.
+    - **The pill + popup:** the pill sits next to „Můj deník 📖", opens and closes the
+      popup, and shows ✓ when done. Inside: Hotovo / Zpět / Sdílet (Sdílet opens over the
+      popup), "already done", filters ignored, a stubbed
+      override (any quest + a special-only one), and override fetch failing →
+      automatic.
+    - **Address:** `?datum=` and an invalid `?datum=`; a wrong `SUPABASE_URL` shows the
+      friendly message.
+    - Load the test script in `<head>` (to stub `fetch`) and start it on
+      `DOMContentLoaded`.
   - „Napiš mi 💌": send stays faded without type/text, counter, bug note only for
     „Chyba 🐛", thank-you after sending, error keeps the text, 30 s wait message
 - After any database change, recheck with the publishable key (e.g. `curl`) that
@@ -384,6 +483,32 @@ writing code.
 - ~~**Sharing a completed quest as an Instagram story**~~ – done (Nov 2026): „Sdílet 📤".
 - **Freely movable card on the share image (drag with a finger)**, instead of only
   Nahoře / Dole.
+- ~~**Quest dne**~~ – done (Nov 2026): daily shared quest, special days, special-only quests.
+- **Streak: 🔥 X dní v řadě** for completing the Quest dne several days in a row.
+- ⭐ **Profile ("Můj profil") – liked by the owner, on the back burner (Nov 2026).** Goal:
+  a lighter main screen (the owner finds the app getting heavy and samey).
+  - **Entry:** a round avatar button in the top-right corner (her photo, else her first
+    letter, else a star). It opens a full-screen sheet (a `<dialog>`, slides up on a
+    phone, ✕ to close). Not a separate page, so double-clicking `index.html` still works.
+  - **Contents:**
+    1. Profile picture + name (optional), e.g. „Ahoj, Káťo ✨".
+    2. „Můj deník 📖" moves here (off the main screen).
+    3. Small stats: total completed, per level, Quest dne count; the 🔥 streak later.
+    4. **Colour themes** (the owner likes them): Víno (default, today's colours),
+       Levandule, Šalvěj, Noc (dark). A theme swaps the 4 `:root` colours; check text
+       contrast for each.
+    5. **„Začít znovu" and „Napiš mi 💌" move here** (owner's decision), plus the
+       Instagram link.
+  - Main screen afterwards: Quest dne, levels, button, card.
+  - **Storage:** everything stays on the device (localStorage, in try/catch, like
+    progress). No accounts. Each browser/device (and iPhone Safari vs. home-screen app)
+    has its own profile; links to the "syncing" idea below.
+  - **Privacy:** the profile photo follows rule 4 (never leaves the browser). Store it
+    downscaled to a small circle, e.g. 256×256, so it's tiny.
+  - Maybe later: her name on the share image („Splnila Káťa ✅"), only if she opts in.
+  - **Suggested order:** (1) avatar + sheet with photo, name and deník; (2) stats +
+    moving Začít znovu / Napiš mi; (3) themes. The Quest dne pill could later sit next
+    to the avatar.
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.

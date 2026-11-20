@@ -763,6 +763,81 @@
     }
 
     /* Úzké obrazovky (mobil) */
+    /* ===== Řádek pod kartou: "🌟 Quest dne" + "Můj deník 📖" ===== */
+    .extras {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .extras .journal-open { margin: 0; }
+
+    /* ===== 🌟 Quest dne (okno) ===== */
+    .daily-intro {
+      margin: 0;
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+
+    .daily-preview {
+      margin: 6px 0 0;
+      font-size: 0.75rem;
+      font-style: italic;
+      opacity: 0.8;
+    }
+
+    /* Růžová karta s questem uvnitř okna (jako hlavní karta) */
+    .daily-card {
+      margin-top: 16px;
+      padding: 24px 18px 20px;
+      border-radius: 16px;
+      background: var(--pink);
+      text-align: center;
+    }
+
+    .daily-quest {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.2rem, 4.5vw, 1.45rem);
+      line-height: 1.35;
+    }
+
+    .daily-message {
+      font-size: 0.9rem;
+      font-style: italic;
+      font-family: inherit;
+      opacity: 0.85;
+    }
+
+    .daily-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 10px 12px;
+      margin-top: 18px;
+    }
+
+    /* Tlačítka uvnitř přebírají vzhled hlavní karty (.done, .share-open, .undo) */
+    .daily-actions .done,
+    .daily-actions .share-open,
+    .daily-actions .undo { margin-top: 0; }
+
+    .daily-already {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--wine);
+    }
+
+    /* Zpráva místo questu (načítání / chyba) */
+    .daily-card .daily-message {
+      font-size: 1rem;
+      font-style: italic;
+      opacity: 0.75;
+    }
+
     /* ===== Okno "Sdílet" ===== */
     .share-preview {
       display: block;
@@ -907,7 +982,11 @@
       </div>
     </div>
 
-    <button class="journal-open" id="journal-open">Můj deník 📖</button>
+    <!-- Pod kartou: Quest dne (otevře okno) a deník -->
+    <div class="extras">
+      <button class="journal-open" id="daily-open">🌟 Quest dne</button>
+      <button class="journal-open" id="journal-open">Můj deník 📖</button>
+    </div>
 
     <button class="reset" id="reset">Začít znovu</button>
 
@@ -944,6 +1023,32 @@
       <div class="filters-actions">
         <button class="filters-confirm" id="filters-confirm">Potvrdit filtry</button>
         <button class="filters-reset" id="filters-reset" disabled>Zrušit filtry</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Okno "🌟 Quest dne": jeden společný quest pro všechny na každý den (filtry ho neovlivní) -->
+  <dialog class="journal filters" id="daily" aria-labelledby="daily-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="daily-title" tabindex="-1" autofocus>🌟 Quest dne</h2>
+        <button class="icon-close" id="daily-close" aria-label="Zavřít">✕</button>
+      </div>
+      <p class="daily-intro">Jeden společný quest pro všechny na dnešek.</p>
+      <div class="daily-preview" id="daily-preview" hidden></div>
+      <div class="daily-card">
+        <div class="card-tags" id="daily-tags">
+          <span class="card-tag" id="daily-level"></span>
+          <span class="card-tag" id="daily-category"></span>
+          <span class="card-tag" id="daily-budget"></span>
+        </div>
+        <p class="quest" id="daily-text"></p>
+        <div class="daily-actions" id="daily-actions">
+          <button class="done" id="daily-done">Hotovo ✓</button>
+          <span class="daily-already" id="daily-already" hidden>Tenhle už máš splněný ✓</span>
+          <button class="share-open" id="daily-share" hidden>Sdílet 📤</button>
+          <button class="undo" id="daily-undo" hidden>Zpět</button>
+        </div>
       </div>
     </div>
   </dialog>
@@ -1056,10 +1161,12 @@
       vicnez500: "Víc než 500 Kč 💰"
     };
 
-    // Questy po úrovních: { easy: [{ id, category, budget, text, author }, ...], medium: [...], hard: [...] }
+    // Questy po úrovních: { easy: [{ id, level, category, budget, text, author, addedOn, special }, ...], medium: [...], hard: [...] }
     // "author" = Instagram autorky questu (sloupec author_instagram), většinou prázdné.
+    // "addedOn" = kdy byl quest přidaný (pro Quest dne). Speciální questy tu NEJSOU.
     // Dokud se nenačtou ze Supabase, je to undefined.
     let QUESTS;
+    let SPECIAL_QUESTS = [];   // speciální questy (special_only) – jen pro Quest dne ve speciální den
     let questsStatus = "loading";   // "loading" = načítá se, "ready" = hotovo, "error" = nepovedlo se
 
     const loadingText = "Načítám questy… ✨";
@@ -1153,6 +1260,7 @@
         const count = list.length - remainingQuests(el.dataset.progress).length;
         el.textContent = "Splněno " + count + "/" + list.length;
       });
+      renderDaily();  // karta Questu dne ukazuje, jestli je splněný
     }
 
     // Název kategorie podle kódu, např. "metime" → "Me time 💄" (neznámý kód → prázdný text)
@@ -1262,19 +1370,28 @@
       const timer = setTimeout(() => controller.abort(), 10000);
       try {
         const response = await fetch(
-          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,budget,text,author_instagram&order=id",
+          SUPABASE_URL + "/rest/v1/quests?select=id,level,category,budget,text,author_instagram,added_on,special_only&order=id",
           { headers: { apikey: SUPABASE_KEY }, signal: controller.signal }
         );
         if (!response.ok) throw new Error("Supabase odpověděl " + response.status);
         const rows = await response.json();
         if (!Array.isArray(rows) || rows.length === 0) throw new Error("Žádné questy");
 
-        // Roztřídíme řádky z databáze do stejného tvaru, jaký měl dřív quests.js
+        // Roztřídíme řádky z databáze do stejného tvaru, jaký měl dřív quests.js.
+        // Speciální questy (special_only) jdou zvlášť: nepočítají se do úrovní,
+        // nepadnou náhodně a ukážou se jen jako Quest dne ve svůj speciální den.
         const loaded = { easy: [], medium: [], hard: [] };
+        const special = [];
         rows.forEach(row => {
-          if (loaded[row.level]) loaded[row.level].push({ id: row.id, category: row.category, budget: row.budget, text: row.text, author: row.author_instagram });
+          if (!loaded[row.level]) return;
+          const quest = {
+            id: row.id, level: row.level, category: row.category, budget: row.budget, text: row.text,
+            author: row.author_instagram, addedOn: row.added_on || "2026-01-01", special: row.special_only === true
+          };
+          (quest.special ? special : loaded[row.level]).push(quest);
         });
         QUESTS = loaded;
+        SPECIAL_QUESTS = special;
         questsStatus = "ready";
         updateProgress();
       } catch (e) {
@@ -1283,6 +1400,7 @@
         clearTimeout(timer);
       }
       clearCard();
+      refreshDaily();
     }
 
     // Kliknutí na úroveň: označí ji jako vybranou a vyčistí kartu
@@ -1564,10 +1682,22 @@
         return;
       }
 
+      // Sekce: tři úrovně ("Lehká · 3/43") a nakonec speciální questy (jen když nějaký splnila)
+      const sections = Object.keys(levelNames).map(level => ({
+        pool: QUESTS[level],
+        title: items => levelNames[level] + " · " + items.length + "/" + QUESTS[level].length,
+        alwaysShow: true
+      }));
+      sections.push({
+        pool: SPECIAL_QUESTS,
+        title: items => "🌟 Speciální questy · " + items.length,
+        alwaysShow: false
+      });
+
       let total = 0;
-      Object.keys(levelNames).forEach(level => {
+      sections.forEach(section => {
         const items = doneEntries
-          .map((entry, order) => ({ ...entry, order, quest: QUESTS[level].find(q => q.id === entry.id) }))
+          .map((entry, order) => ({ ...entry, order, quest: section.pool.find(q => q.id === entry.id) }))
           .filter(item => item.quest)
           .sort((a, b) => {
             if (a.date !== b.date) {
@@ -1578,9 +1708,10 @@
             return b.order - a.order;  // stejný den: později splněný je výš
           });
         total += items.length;
+        if (!section.alwaysShow && items.length === 0) return;
 
         const heading = document.createElement("h3");
-        heading.textContent = levelNames[level] + " · " + items.length + "/" + QUESTS[level].length;
+        heading.textContent = section.title(items);
         journalList.appendChild(heading);
 
         if (items.length === 0) {
@@ -1613,7 +1744,7 @@
           share.className = "share-open";
           share.textContent = "Sdílet 📤";
           share.setAttribute("aria-label", "Sdílet quest: " + item.quest.text);
-          share.addEventListener("click", () => openShare({ ...item.quest, level }, item.date));
+          share.addEventListener("click", () => openShare(item.quest, item.date));
           li.appendChild(share);
           list.appendChild(li);
         });
@@ -1731,7 +1862,8 @@
         size -= 4;
       }
       const lineHeight = Math.round(size * 1.25);
-      const pills = [levelNames[quest.level], categoryName(quest.category)].filter(Boolean);
+      // Štítky: úroveň (u speciálního questu "🌟 Speciální quest") a kategorie
+      const pills = [quest.special ? "🌟 Speciální quest" : levelNames[quest.level], categoryName(quest.category)].filter(Boolean);
       const height = CARD_PAD + 40 + 32 + lines.length * lineHeight + 36
                    + (pills.length ? 60 + 40 : 0) + 34 + CARD_PAD;
       return { width, inner, size, lines, lineHeight, pills, height };
@@ -2089,6 +2221,251 @@
       cardBlob = null;
       sharePhotoInput.value = "";
       sharePreview.getContext("2d").clearRect(0, 0, STORY_W, STORY_H);
+    });
+
+    // ===== 🌟 Quest dne =====
+    // Každý telefon spočítá stejný Quest dne jen z data (český čas, mění se o půlnoci).
+    // Automatický výběr: "balíček karet". Questy (lehké a střední, budget zdarma / do 500 Kč,
+    // ne speciální) se v každém "kole" zamíchají a jdou den po dni bez opakování.
+    // Kolo bere jen questy přidané PŘED jeho začátkem → nový quest počká na další kolo,
+    // takže přidání questu nikdy nezmění dnešní Quest dne.
+    // Speciální den (tabulka daily_quest_overrides) má přednost a může být jakýkoli quest.
+    const DAILY_START = "2026-11-01";                 // začátek prvního kola (nikdy neměnit!)
+    const DAILY_LEVELS = ["easy", "medium"];
+    const DAILY_BUDGETS = ["zdarma", "do500"];
+
+    const dailyBox = document.getElementById("daily");             // okno Questu dne
+    const dailyOpenButton = document.getElementById("daily-open"); // tlačítko "🌟 Quest dne" pod kartou
+    const dailyText = document.getElementById("daily-text");
+    const dailyPreview = document.getElementById("daily-preview");
+    const dailyTags = document.getElementById("daily-tags");
+    const dailyLevel = document.getElementById("daily-level");
+    const dailyCategory = document.getElementById("daily-category");
+    const dailyBudget = document.getElementById("daily-budget");
+    const dailyActions = document.getElementById("daily-actions");
+    const dailyDoneButton = document.getElementById("daily-done");
+    const dailyAlready = document.getElementById("daily-already");
+    const dailyShareButton = document.getElementById("daily-share");
+    const dailyUndoButton = document.getElementById("daily-undo");
+
+    let dailyQuest = null;      // dnešní Quest dne (objekt questu), nebo null
+    let dailyDate = null;       // pro které datum je spočítaný ("2026-11-27")
+    let dailyJustDone = null;   // ID questu, který splnila tady na kartě (dokud jde "Zpět")
+    let dailyRefreshId = 0;
+
+    // Dnešní datum v Česku (Europe/Prague) jako "2026-11-27" – stejné na každém telefonu
+    function pragueDate(now) {
+      try {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Europe/Prague", year: "numeric", month: "2-digit", day: "2-digit"
+        }).format(now || new Date());
+      } catch (e) {
+        return todayString();   // starý prohlížeč bez časových pásem: místní datum
+      }
+    }
+
+    // Jen pro testování: ?datum=2026-11-27 v adrese ukáže Quest dne pro ten den
+    function previewDateFromUrl() {
+      let value = null;
+      try { value = new URLSearchParams(location.search).get("datum"); } catch (e) {}
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+      const [y, m, d] = value.split("-").map(Number);
+      const check = new Date(Date.UTC(y, m - 1, d));
+      if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
+      return value;
+    }
+    const DAILY_PREVIEW_DATE = previewDateFromUrl();
+
+    // "2026-11-27" → pořadové číslo dne (bez starostí s letním časem)
+    function dayNumber(date) {
+      const [y, m, d] = date.split("-").map(Number);
+      return Math.round(Date.UTC(y, m - 1, d) / 86400000);
+    }
+
+    // pořadové číslo dne → "2026-11-27"
+    function dateFromDayNumber(n) {
+      return new Date(n * 86400000).toISOString().slice(0, 10);
+    }
+
+    // Jednoduchý otisk textu (stejný výsledek na každém zařízení) – slouží k "zamíchání"
+    function hash32(text) {
+      let h = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    // Questy, které můžou být automatickým Questem dne
+    function dailyPool() {
+      return DAILY_LEVELS
+        .flatMap(level => QUESTS[level])
+        .filter(q => DAILY_BUDGETS.includes(q.budget));
+    }
+
+    // Zamíchané pořadí questů v kole. Questy z druhé poloviny minulého kola (recent)
+    // se přesunou na konec, aby se žádný quest nevrátil hned na začátku dalšího kola.
+    function roundOrder(members, round, recent) {
+      const order = members.slice().sort((a, b) =>
+        (hash32(round + ":" + a.id) - hash32(round + ":" + b.id)) || (a.id < b.id ? -1 : 1));
+      if (!recent || recent.size === 0) return order;
+      return order.filter(q => !recent.has(q.id)).concat(order.filter(q => recent.has(q.id)));
+    }
+
+    // Automatický Quest dne pro datum (bez speciálních dnů)
+    function automaticDailyQuest(date) {
+      const pool = dailyPool();
+      if (pool.length === 0) return null;
+      const target = dayNumber(date);
+      let start = dayNumber(DAILY_START);
+
+      // Datum před prvním kolem (jen náhled): bere se jednoduše dokola ze všech questů
+      if (target < start) {
+        const order = roundOrder(pool, -1, null);
+        return order[((target - start) % order.length + order.length) % order.length];
+      }
+
+      let recent = null;   // questy z druhé poloviny minulého kola
+      for (let round = 0; round < 100000; round++) {
+        const startDate = dateFromDayNumber(start);
+        let members = pool.filter(q => q.addedOn < startDate);   // jen questy přidané před začátkem kola
+        if (members.length === 0) members = pool;
+        const order = roundOrder(members, round, recent);
+        if (target < start + order.length) return order[target - start];
+        recent = new Set(order.slice(Math.ceil(order.length / 2)).map(q => q.id));
+        start += order.length;
+      }
+      return null;
+    }
+
+    // Najde quest podle ID (běžný i speciální)
+    function questById(id) {
+      if (typeof QUESTS === "undefined") return null;
+      return Object.values(QUESTS).flat().concat(SPECIAL_QUESTS).find(q => q.id === id) || null;
+    }
+
+    // Speciální den z tabulky daily_quest_overrides (když nejde načíst → null = automatický)
+    async function fetchDailyOverride(date) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(
+          SUPABASE_URL + "/rest/v1/daily_quest_overrides?select=quest_id&date=eq." + date,
+          { headers: { apikey: SUPABASE_KEY }, signal: controller.signal }
+        );
+        if (!response.ok) return null;
+        const rows = await response.json();
+        return Array.isArray(rows) && rows[0] && typeof rows[0].quest_id === "string" ? rows[0].quest_id : null;
+      } catch (e) {
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    // Spočítá Quest dne (speciální den má přednost) a překreslí kartu
+    async function refreshDaily() {
+      const id = ++dailyRefreshId;
+      if (questsStatus !== "ready") {
+        dailyQuest = null;
+        dailyDate = null;
+        renderDaily();
+        return;
+      }
+      const date = DAILY_PREVIEW_DATE || pragueDate();
+      const overrideId = await fetchDailyOverride(date);
+      if (id !== dailyRefreshId) return;
+      dailyDate = date;
+      dailyQuest = (overrideId && questById(overrideId)) || automaticDailyQuest(date);
+      dailyJustDone = null;
+      renderDaily();
+    }
+
+    // Překreslí okno Questu dne podle stavu (nesplněný / právě splněný / splněný dřív)
+    // a tlačítko pod kartou ("🌟 Quest dne ✓", když je dnešní splněný)
+    function renderDaily() {
+      dailyOpenButton.textContent = dailyQuest && isDone(dailyQuest.id) ? "🌟 Quest dne ✓" : "🌟 Quest dne";
+      dailyPreview.hidden = !DAILY_PREVIEW_DATE;
+      dailyPreview.textContent = DAILY_PREVIEW_DATE ? "Náhled pro " + formatDate(DAILY_PREVIEW_DATE) : "";
+
+      if (!dailyQuest) {
+        // Questy se nenačetly: jen krátká zpráva, zbytek appky funguje dál
+        dailyText.textContent = questsStatus === "error"
+          ? "Quest dne se teď nepodařilo načíst 😕"
+          : "Načítám Quest dne… ✨";
+        dailyText.classList.add("daily-message");
+        dailyTags.hidden = true;
+        dailyActions.hidden = true;
+        return;
+      }
+
+      const quest = dailyQuest;
+      dailyText.textContent = quest.text;
+      dailyText.classList.remove("daily-message");
+      dailyLevel.textContent = quest.special ? "🌟 Speciální quest" : levelNames[quest.level] || "";
+      dailyCategory.textContent = categoryName(quest.category);
+      dailyBudget.textContent = budgetName(quest.budget);
+      [dailyLevel, dailyCategory, dailyBudget].forEach(tag => { tag.hidden = !tag.textContent; });
+      dailyTags.hidden = dailyLevel.hidden && dailyCategory.hidden && dailyBudget.hidden;
+      dailyActions.hidden = false;
+
+      const done = isDone(quest.id);
+      if (!done) dailyJustDone = null;
+      const justDone = done && dailyJustDone === quest.id;
+
+      dailyDoneButton.hidden = done && !justDone;
+      dailyDoneButton.disabled = justDone;
+      dailyDoneButton.textContent = justDone ? "Splněno 🎉" : "Hotovo ✓";
+      dailyAlready.hidden = !done || justDone;
+      dailyShareButton.hidden = !done;
+      dailyUndoButton.hidden = !justDone;
+    }
+
+    // "Hotovo ✓" na kartě Questu dne: stejné jako na běžné kartě (deník s datem, pokrok)
+    dailyDoneButton.addEventListener("click", () => {
+      if (!dailyQuest || isDone(dailyQuest.id)) return;
+      doneEntries.push({ id: dailyQuest.id, date: todayString() });
+      saveDone();
+      dailyJustDone = dailyQuest.id;
+      updateProgress();   // překreslí i tuhle kartu
+    });
+
+    // "Zpět": vrátí splnění Questu dne
+    dailyUndoButton.addEventListener("click", () => {
+      if (!dailyQuest || dailyJustDone !== dailyQuest.id) return;
+      doneEntries = doneEntries.filter(entry => entry.id !== dailyQuest.id);
+      saveDone();
+      dailyJustDone = null;
+      updateProgress();
+    });
+
+    // "Sdílet 📤": sdílí Quest dne s datem, kdy ho splnila
+    dailyShareButton.addEventListener("click", () => {
+      if (!dailyQuest) return;
+      const entry = doneEntries.find(e => e.id === dailyQuest.id);
+      openShare(dailyQuest, entry ? entry.date : todayString());
+    });
+
+    // Otevření a zavření okna (✕, klávesa Esc nebo klepnutí vedle okna)
+    dailyOpenButton.addEventListener("click", () => {
+      renderDaily();
+      dailyBox.showModal();
+      dailyBox.scrollTop = 0;
+    });
+    document.getElementById("daily-close").addEventListener("click", () => dailyBox.close());
+    dailyBox.addEventListener("click", e => {
+      if (e.target === dailyBox) dailyBox.close();
+    });
+
+    // Půlnoc: když je appka otevřená přes půlnoc (nebo se k ní vrátí druhý den), přepne se Quest dne
+    function checkDailyDate() {
+      if (DAILY_PREVIEW_DATE || questsStatus !== "ready") return;
+      if (dailyDate && pragueDate() !== dailyDate) refreshDaily();
+    }
+    setInterval(checkDailyDate, 60000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") checkDailyDate();
     });
 
     // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====
