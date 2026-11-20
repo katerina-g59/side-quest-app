@@ -763,6 +763,38 @@
     }
 
     /* Úzké obrazovky (mobil) */
+    /* ===== 🔥 Streak pod podnadpisem (jen text, žádný box) ===== */
+    .streak {
+      margin: -18px 0 24px;
+      color: var(--wine);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .streak-hint {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+
+    /* Krátká oslava milníku */
+    .streak.celebrate #streak-text {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--pink);
+      animation: fadeIn 0.5s ease;
+    }
+
+    .journal-streak {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--wine);
+    }
+
     /* ===== Řádek pod kartou: "🌟 Quest dne" + "Můj deník 📖" ===== */
     .extras {
       display: flex;
@@ -936,6 +968,12 @@
     <h1>Side Quest Generátor</h1>
     <p class="subtitle">Malé výzvy pro velký den. Vyber si úroveň a nech se překvapit.</p>
 
+    <!-- 🔥 Týdenní streak (skrytý, když je 0) -->
+    <div class="streak" id="streak" hidden aria-live="polite">
+      <span id="streak-text"></span>
+      <span class="streak-hint" id="streak-hint" hidden>Tento týden ti ještě chybí quest 🔥</span>
+    </div>
+
     <div class="label">Vyber úroveň</div>
     <div class="levels">
       <div class="level-item">
@@ -1004,6 +1042,7 @@
         <h2 id="journal-title" tabindex="-1" autofocus>Můj deník 📖</h2>
         <button class="journal-close" id="journal-close">Zavřít ✕</button>
       </div>
+      <p class="journal-streak" id="journal-streak" hidden></p>
       <p class="journal-empty journal-empty-all" id="journal-empty" hidden>Tvůj deník je zatím prázdný. První side quest čeká! ✨</p>
       <div id="journal-list"></div>
     </div>
@@ -1136,6 +1175,9 @@
     </div>
   </dialog>
 
+  <!-- Výpočet týdenního streaku (samostatný soubor, používá ho i tests.html; musí být ve stejné složce) -->
+  <script src="streak.js"></script>
+
   <script>
     // ===== Supabase: odtud se načítají questy =====
     // Veřejný (publishable) klíč smí být vidět – databáze mu dovolí questy jen číst.
@@ -1254,6 +1296,7 @@
 
     // Přepíše "Splněno 3/10" pod každou úrovní
     function updateProgress() {
+      renderStreak();  // streak se počítá z deníku, i když se questy nenačetly
       if (typeof QUESTS === "undefined") return;
       document.querySelectorAll(".progress").forEach(el => {
         const list = QUESTS[el.dataset.progress];
@@ -1620,6 +1663,7 @@
         saveDone();
       }
       updateProgress();
+      celebrateStreak();
       doneButton.textContent = "Splněno 🎉";
       doneButton.disabled = true;
       lastDone = quest;
@@ -1657,6 +1701,7 @@
 
       doneEntries = [];
       saveDone();
+      saveShownMilestones([]);   // nový začátek = i oslavy streaku znovu od začátku
       updateProgress();
 
       lastQuestId = "";
@@ -1671,6 +1716,13 @@
     // Postaví seznam splněných questů po úrovních (nejnovější nahoře, bez data na konci)
     function renderJournal() {
       journalList.innerHTML = "";
+
+      // "Nejdelší streak: 5 týdnů" (skryté, dokud nemá ani jeden týden)
+      const longest = currentStreak().longest;
+      const journalStreak = document.getElementById("journal-streak");
+      journalStreak.hidden = longest === 0;
+      journalStreak.textContent = "Nejdelší streak: " + weeksText(longest) + " 🔥";
+
       if (questsStatus !== "ready") {
         journalEmpty.hidden = true;
         const message = document.createElement("p");
@@ -1888,10 +1940,17 @@
       ctx.textBaseline = "top";
       ctx.textAlign = "left";
 
-      // Nahoře: "✅ Splněno · 16. 11."
+      // Nahoře: "✅ Splněno · 16. 11." a od 2 týdnů i "· 🔥 3 týdny v řadě"
+      // (streak v okamžiku sdílení; když by řádek byl moc dlouhý, písmo se zmenší)
       ctx.fillStyle = "rgba(244, 229, 167, 0.85)";
-      ctx.font = '600 32px "Montserrat", Arial, sans-serif';
-      ctx.fillText("✅ Splněno" + (shareDate ? " · " + shortDate(shareDate) : ""), left, cy);
+      const streakNow = currentStreak().current;
+      const topLine = "✅ Splněno" + (shareDate ? " · " + shortDate(shareDate) : "")
+                    + (streakNow >= 2 ? " · 🔥 " + weeksText(streakNow) + " v řadě" : "");
+      let topSize = 32;
+      do {
+        ctx.font = '600 ' + topSize + 'px "Montserrat", Arial, sans-serif';
+      } while (ctx.measureText(topLine).width > layout.inner && --topSize > 20);
+      ctx.fillText(topLine, left, cy);
       cy += 40 + 32;
 
       // Text questu
@@ -2429,6 +2488,7 @@
       saveDone();
       dailyJustDone = dailyQuest.id;
       updateProgress();   // překreslí i tuhle kartu
+      celebrateStreak();
     });
 
     // "Zpět": vrátí splnění Questu dne
@@ -2467,6 +2527,85 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") checkDailyDate();
     });
+
+    // ===== 🔥 Týdenní streak =====
+    // Výpočet je v streak.js. Tady jen zobrazení a oslava milníků (2, 4, 8, 12 týdnů).
+    // Jediná nová věc v paměti prohlížeče: které oslavy už se ukázaly (aby každá byla jen jednou).
+    const STREAK_SHOWN_KEY = "sideQuestStreakMilestones";
+    const streakMessages = {
+      2: "🔥 2 týdny v řadě! Krásný začátek, jen tak dál.",
+      4: "🔥 Celý měsíc side questů! Z tohohle se stává zvyk.",
+      8: "🔥 8 týdnů v řadě! Můžeš na sebe být pyšná.",
+      12: "🔥 12 týdnů! Čtvrt roku malých dobrodružství 👑"
+    };
+
+    const streakBox = document.getElementById("streak");
+    const streakText = document.getElementById("streak-text");
+    const streakHint = document.getElementById("streak-hint");
+    let streakCelebrationTimer = null;
+    let streakCelebrating = 0;      // milník, který se právě slaví
+
+    // "Dnešek" pro streak: český čas, nebo datum z ?datum= při testování
+    function streakToday() {
+      return DAILY_PREVIEW_DATE || pragueDate();
+    }
+
+    function currentStreak() {
+      return computeStreak(doneEntries, streakToday());
+    }
+
+    function loadShownMilestones() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STREAK_SHOWN_KEY));
+        return Array.isArray(saved) ? saved : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveShownMilestones(list) {
+      try {
+        localStorage.setItem(STREAK_SHOWN_KEY, JSON.stringify(list));
+      } catch (e) {}
+    }
+
+    // Překreslí řádek "🔥 3 týdny v řadě" (skrytý, když je streak 0)
+    function renderStreak() {
+      const s = currentStreak();
+      // Právě běží oslava: necháme ji doběhnout. Když ale streak mezitím klesl
+      // ("Zpět", "Začít znovu"), oslava hned zmizí.
+      if (streakCelebrationTimer) {
+        if (s.current >= streakCelebrating) return;
+        clearTimeout(streakCelebrationTimer);
+        streakCelebrationTimer = null;
+      }
+      streakBox.classList.remove("celebrate");
+      streakBox.hidden = s.current === 0;
+      streakText.textContent = "🔥 " + weeksText(s.current) + " v řadě";
+      streakHint.hidden = !s.missingThisWeek;
+    }
+
+    // Po "Hotovo ✓": když streak právě dosáhl milníku, krátce ukáže milou zprávu
+    function celebrateStreak() {
+      const result = streakMilestone(loadShownMilestones(), currentStreak().current);
+      saveShownMilestones(result.shown);
+      if (!result.celebrate) return;
+      clearTimeout(streakCelebrationTimer);
+      streakCelebrating = result.celebrate;
+      streakBox.hidden = false;
+      streakBox.classList.add("celebrate");
+      streakText.textContent = streakMessages[result.celebrate];
+      streakHint.hidden = true;
+      streakCelebrationTimer = setTimeout(() => {
+        streakCelebrationTimer = null;
+        renderStreak();
+      }, 6000);
+    }
+
+    // Při otevření appky: milníky, které už streak má, se tiše označí jako ukázané
+    // (žádná překvapivá oslava hned po spuštění)
+    saveShownMilestones(streakMilestone(loadShownMilestones(), currentStreak().current).shown);
+    renderStreak();
 
     // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====
     // Databáze dovolí veřejnému klíči zprávy jen přidávat, ne číst. Proto posíláme

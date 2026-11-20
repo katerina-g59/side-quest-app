@@ -57,6 +57,35 @@ A small web page that gives overwhelmed young women working in corporate a rando
     - Completed ones get their own deník section „🌟 Speciální questy · N" (only shown
       when there's at least one).
     - On the share image their pill says „🌟 Speciální quest".
+- **🔥 Weekly streak (Nov 2026):** a gentle "weeks in a row" streak.
+  - **Counting** (pure functions in `streak.js`):
+    - A week runs Monday–Sunday. It counts if at least 1 quest (any) was completed in
+      it, by the deník dates.
+    - Undated (old) entries and future dates don't count.
+    - The streak is **calculated, never stored**: `computeStreak(doneEntries, today)`.
+  - **This week still empty:** the streak still counts up to last week, and the hint
+    „Tento týden ti ještě chybí quest 🔥" shows. It only drops to 0 after a whole week
+    without a quest.
+  - **"Today":** `streakToday()` = Prague date, or the `?datum=` date when testing.
+  - **Main screen:** a small wine text line under the subtitle, „🔥 3 týdny v řadě"
+    (no box), plus the hint when needed. Hidden when the streak is 0.
+  - **Deník:** „Nejdelší streak: X týdnů 🔥" at the top (hidden when 0).
+  - **Plurals** (`weeksText`): 1 týden · 2–4 týdny · 0 and 5+ týdnů.
+  - **Milestones 2, 4, 8, 12** (`streakMilestone`):
+    - Right after a „Hotovo ✓" (main card or Quest dne) that reaches one, the streak
+      line shows a kind message (`streakMessages`) on a pink pill for 6 s.
+    - It disappears straight away if „Zpět" / „Začít znovu" drops the streak below
+      the milestone.
+    - Each milestone is celebrated **only once ever**. Shown ones are remembered in
+      localStorage key `sideQuestStreakMilestones` (e.g. `[2,4]`, in try/catch); this is
+      the owner's choice.
+    - On page load, milestones the streak has already reached are marked silently (no
+      surprise message).
+    - „Začít znovu" clears the list.
+  - **Share image:** when the streak is ≥ 2, the card's top line becomes
+    „✅ Splněno · 16. 11. · 🔥 3 týdny v řadě" (the streak at share time; the font
+    shrinks if the line is too long).
+  - `updateProgress()` calls `renderStreak()`, so Hotovo / Zpět / Začít znovu update it.
 - You pick a level (Lehká / Střední / Těžká) and click „Dej mi side quest ✨".
 - **Filters:** a round icon button (sliders icon, inline SVG, wine on cream; label
   „Filtry" for screen readers) at the end of the Lehká / Střední / Těžká row opens a popup
@@ -219,6 +248,18 @@ A small web page that gives overwhelmed young women working in corporate a rando
     `CATEGORIES` / `BUDGETS` order (empty list = Všechny); `matchesFilters(quest)` decides
     what can be picked, `toggleDraft()` holds the „Všechny" rules, `removeFilter()` is
     used by the tags.
+- `streak.js` – the weekly streak calculation:
+  - `streakWeekIndex`, `computeStreak`, `weeksText`, `streakMilestone`,
+    `STREAK_MILESTONES`
+  - pure functions with no page access, loaded by `index.html` **and** `tests.html`
+    with `<script src>`, so it must stay in the same folder
+- `tests.html` – automated tests: open it in the browser, by double-clicking or at
+  …/side-quest-app/tests.html.
+  - It checks the streak calculation with made-up dates (3 weeks in a row, gap,
+    New Year week, Sunday/Monday, empty current week, undated, longest, plurals,
+    milestones, future dates) and shows ✅/❌ plus „24 / 24 prošlo ✅".
+  - **Open it after every change to the streak.** New cases go in as more `check(...)`
+    lines.
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `supabase/functions/feedback-email/index.ts` – backup of the Edge Function that emails
@@ -435,6 +476,14 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     - Headless Edge's `--virtual-time-budget` doesn't wait for decoding big images or
       `createImageBitmap`: give it real time (a busy loop) or check the canvases
       directly.
+  - Streak: `tests.html` shows all ✅. In the app:
+    - the line + hint, Hotovo → +1, Zpět → back
+    - milestone celebration once (none on load, gone after Zpět)
+    - Quest dne Hotovo counts
+    - deník longest
+    - share top line
+    - Začít znovu → hidden + milestones cleared
+    - `?datum=` next week (kept + hint) and 2 weeks later (0)
   - Quest dne:
     - **Simulate 3 years:** the same date gives the same quest, no repeats within a
       round, every quest once per round, the gap before a repeat is ≥ 30 days, and
@@ -484,7 +533,8 @@ writing code.
 - **Freely movable card on the share image (drag with a finger)**, instead of only
   Nahoře / Dole.
 - ~~**Quest dne**~~ – done (Nov 2026): daily shared quest, special days, special-only quests.
-- **Streak: 🔥 X dní v řadě** for completing the Quest dne several days in a row.
+- ~~**Streak**~~ – done (Nov 2026) as a gentle **weekly** streak (any quest counts), see
+  above. (The original idea was days in a row of Quest dne; the owner chose weeks.)
 - ⭐ **Profile ("Můj profil") – liked by the owner, on the back burner (Nov 2026).** Goal:
   a lighter main screen (the owner finds the app getting heavy and samey).
   - **Entry:** a round avatar button in the top-right corner (her photo, else her first
@@ -506,6 +556,9 @@ writing code.
   - **Privacy:** the profile photo follows rule 4 (never leaves the browser). Store it
     downscaled to a small circle, e.g. 256×256, so it's tiny.
   - Maybe later: her name on the share image („Splnila Káťa ✅"), only if she opts in.
+  - **Streak next to the profile picture (owner's wish):** e.g. „🔥 3" when she has
+    already completed a quest this week, „⚠ 3" when this week still has no quest
+    (uses `computeStreak(...).thisWeekDone` from `streak.js`).
   - **Suggested order:** (1) avatar + sheet with photo, name and deník; (2) stats +
     moving Začít znovu / Napiš mi; (3) themes. The Quest dne pill could later sit next
     to the avatar.

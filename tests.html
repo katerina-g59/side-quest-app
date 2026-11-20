@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testy – Side Quest Generátor</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <style>
+    /* Jednoduchá testovací stránka ve stejných barvách jako appka */
+    :root { --wine: #772C3A; --cream: #F4E5A7; --brown: #35211F; --pink: #E8C5C3; }
+    body {
+      margin: 0;
+      padding: 32px 16px;
+      background: var(--cream);
+      color: var(--brown);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { color: var(--wine); margin: 0 0 6px; }
+    .intro { margin: 0 0 20px; line-height: 1.5; }
+    .summary {
+      margin: 0 0 20px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: var(--pink);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    li { padding: 10px 14px; border-radius: 10px; background: #fff8dc; line-height: 1.45; }
+    li.fail { background: #f7c1c1; }
+    .detail { display: block; font-size: 0.85rem; opacity: 0.75; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Testy streaku 🔥</h1>
+    <p class="intro">
+      Tahle stránka zkontroluje, že se týdenní streak počítá správně. Každý řádek je jeden
+      vymyšlený příklad se známou správnou odpovědí. ✅ = sedí, ❌ = něco je špatně.
+      Otevři ji po každé změně appky.
+    </p>
+    <p class="summary" id="summary">Spouštím testy…</p>
+    <ul id="results"></ul>
+  </main>
+
+  <!-- Stejný výpočet, jaký používá appka -->
+  <script src="streak.js"></script>
+  <script>
+    const results = [];
+
+    // Jeden test: název, co vyšlo, co mělo vyjít
+    function check(name, actual, expected) {
+      const ok = JSON.stringify(actual) === JSON.stringify(expected);
+      results.push({ name, ok, detail: ok ? "" : "vyšlo " + JSON.stringify(actual) + ", mělo vyjít " + JSON.stringify(expected) });
+    }
+
+    // Pomůcka: seznam dat → záznamy deníku
+    const done = (...dates) => dates.map((date, i) => ({ id: "test-" + i, date }));
+
+    try {
+      // Pozn.: 16. 11. 2026 je pondělí, 22. 11. 2026 neděle.
+
+      // 1) Tři týdny v řadě
+      let s = computeStreak(done("2026-11-02", "2026-11-09", "2026-11-18"), "2026-11-20");
+      check("3 týdny v řadě → streak 3", s.current, 3);
+
+      // 2) Mezera (týden bez questu) přeruší sérii
+      s = computeStreak(done("2026-10-19", "2026-10-26", "2026-11-09", "2026-11-18"), "2026-11-20");
+      check("Týden bez questu uprostřed → počítá se jen série po mezeře (2)", s.current, 2);
+
+      // 3) Týden přes Nový rok: po 28. 12. 2026 – ne 3. 1. 2027 je jeden týden
+      s = computeStreak(done("2026-12-21", "2027-01-02", "2027-01-06"), "2027-01-07");
+      check("Týden přes Nový rok (28. 12.–3. 1.) se počítá jako jeden týden → 3", s.current, 3);
+      check("31. 12. 2026 a 3. 1. 2027 jsou stejný týden", streakWeekIndex("2026-12-31"), streakWeekIndex("2027-01-03"));
+
+      // 4) Neděle a následující pondělí jsou dva různé týdny
+      check("Neděle 22. 11. a pondělí 23. 11. jsou různé týdny", streakWeekIndex("2026-11-22") === streakWeekIndex("2026-11-23"), false);
+      s = computeStreak(done("2026-11-22", "2026-11-23"), "2026-11-24");
+      check("Neděle + pondělí → streak 2", s.current, 2);
+
+      // 5) Víc questů v jednom týdnu = pořád jen jeden týden
+      s = computeStreak(done("2026-11-16", "2026-11-17", "2026-11-19", "2026-11-22"), "2026-11-22");
+      check("4 questy v jednom týdnu → streak 1", s.current, 1);
+
+      // 6) Tento týden zatím prázdný → streak drží do minulého týdne + upozornění
+      s = computeStreak(done("2026-11-02", "2026-11-09", "2026-11-16"), "2026-11-24");
+      check("Tento týden prázdný, minulý splněný → streak 3 zůstává", s.current, 3);
+      check("…a ukáže se „Tento týden ti ještě chybí quest 🔥“", s.missingThisWeek, true);
+      check("…a tento týden ještě není splněný", s.thisWeekDone, false);
+
+      // 7) Dva prázdné týdny → 0
+      s = computeStreak(done("2026-11-02", "2026-11-09"), "2026-11-24");
+      check("Celý týden bez questu (a tento taky) → streak 0", s.current, 0);
+      check("…a žádné upozornění", s.missingThisWeek, false);
+
+      // 8) Questy bez data se nepočítají
+      s = computeStreak([{ id: "a", date: null }, { id: "b", date: null }, { id: "c", date: "2026-11-18" }], "2026-11-20");
+      check("Questy bez data se ignorují → streak 1", s.current, 1);
+      check("Jen questy bez data → streak 0", computeStreak([{ id: "a", date: null }], "2026-11-20").current, 0);
+
+      // 9) Nejdelší streak, i když byl dávno
+      s = computeStreak(done("2026-01-05", "2026-01-12", "2026-01-19", "2026-01-26", "2026-02-02", "2026-11-18"), "2026-11-20");
+      check("Nejdelší streak = 5 týdnů v lednu (aktuální jen 1)", [s.longest, s.current], [5, 1]);
+      check("Prázdný deník → nejdelší 0", computeStreak([], "2026-11-20").longest, 0);
+
+      // 10) Česká množná čísla
+      check("Plurály: 1 týden, 2–4 týdny, 5+ týdnů", [1, 2, 3, 4, 5, 12, 0].map(weeksText),
+        ["1 týden", "2 týdny", "3 týdny", "4 týdny", "5 týdnů", "12 týdnů", "0 týdnů"]);
+
+      // 11) Oslavy milníků: každá jen jednou
+      let m = streakMilestone([], 2);
+      check("Streak 2 → oslava 2", m.celebrate, 2);
+      m = streakMilestone(m.shown, 2);
+      check("Znovu streak 2 → už žádná oslava", m.celebrate, null);
+      m = streakMilestone(m.shown, 4);
+      check("Streak 4 → oslava 4", m.celebrate, 4);
+      check("Streak 3 → žádný nový milník", streakMilestone([2], 3).celebrate, null);
+      check("Skok rovnou na 9 → slaví se jen 8, a 2/4/8 se označí jako ukázané", [streakMilestone([], 9).celebrate, streakMilestone([], 9).shown], [8, [2, 4, 8]]);
+      check("Po přerušené sérii se 2 už neslaví podruhé", streakMilestone([2, 4], 2).celebrate, null);
+
+      // 12) Data v budoucnu (např. při náhledu ?datum=) se nepočítají
+      check("Quest „z budoucnosti“ se nepočítá", computeStreak(done("2026-12-01"), "2026-11-20").current, 0);
+    } catch (e) {
+      results.push({ name: "Test spadl s chybou", ok: false, detail: String(e) });
+    }
+
+    // Vypsání výsledků
+    const list = document.getElementById("results");
+    results.forEach(r => {
+      const li = document.createElement("li");
+      li.className = r.ok ? "pass" : "fail";
+      li.textContent = (r.ok ? "✅ " : "❌ ") + r.name;
+      if (r.detail) {
+        const detail = document.createElement("span");
+        detail.className = "detail";
+        detail.textContent = r.detail;
+        li.appendChild(detail);
+      }
+      list.appendChild(li);
+    });
+    const passed = results.filter(r => r.ok).length;
+    document.getElementById("summary").textContent =
+      passed + " / " + results.length + " prošlo " + (passed === results.length ? "✅" : "❌");
+    document.title = "RESULT " + passed + "/" + results.length;
+  </script>
+</body>
+</html>
