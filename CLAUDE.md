@@ -5,11 +5,11 @@ A small web page that gives overwhelmed young women working in corporate a rando
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
 - **Main screen (since the profile, Nov 2026)** has only, top to bottom:
-  - the top row: streak badge + avatar, right-aligned
+  - the top row: „🌟 Quest dne" pill on the **left**; streak badge + avatar on the
+    right (`.topbar-spacer` between them)
   - the title + subtitle, and the streak celebration pill (only briefly)
   - the levels + filter icon + filter tags
-  - „Dej mi side quest ✨" and the card
-  - the „🌟 Quest dne" pill
+  - „Dej mi side quest ✨" and the card (nothing below it)
 
   Deník, „Začít znovu", „Napiš mi 💌", the Instagram link and the credit line are in
   the profile. The owner wants the main screen light; don't add things back there.
@@ -85,9 +85,13 @@ A small web page that gives overwhelmed young women working in corporate a rando
     - **Same icon:** the home-screen icon and manifest stay wine.
   - **Still to do:** a better photo crop (see roadmap).
 - **„🌟 Quest dne" (Nov 2026):** one shared quest for everyone per day.
-  - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne",
-    alone under the card (`.extras` row; it used to sit next to „Můj deník 📖", which
-    moved into the profile). It becomes „🌟 Quest dne ✓" when
+  - **Placement (owner's choice):** a compact 44 px outline pill „🌟 Quest dne"
+    (`.daily-open`) at the **top left** of the main screen, on the same row as the
+    avatar ("the profile level").
+    - It fits on a 320 px phone even with „🌟 Quest dne ✓" + „🔥 12".
+    - History: first a big wine card at the top (rejected as heavy), then a pill under
+      the card next to „Můj deník 📖", then alone under the card, then moved up here
+      (Nov 2026). It becomes „🌟 Quest dne ✓" when
     today's is done. The owner rejected a big wine card at the top: the app felt heavy
     and samey. Keep it subtle.
   - Tapping the pill opens a popup (`<dialog id="daily">`, Filtry style: ✕, tap
@@ -629,8 +633,8 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     - **Prague midnight:** check winter, summer and both clock-change days.
     - **Stability:** adding a fake quest with `added_on` = today changes nothing until
       the next round; removing a quest changes today in ~30 %.
-    - **The pill + popup:** the pill sits next to „Můj deník 📖", opens and closes the
-      popup, and shows ✓ when done. Inside: Hotovo / Zpět / Sdílet (Sdílet opens over the
+    - **The pill + popup:** the pill is the first item of the top row (left), opens and
+      closes the popup, and shows ✓ when done. Inside: Hotovo / Zpět / Sdílet (Sdílet opens over the
       popup), "already done", filters ignored, a stubbed
       override (any quest + a special-only one), and override fetch failing →
       automatic.
@@ -714,8 +718,8 @@ writing code.
     already completed a quest this week, „⚠ 3" when this week still has no quest
     (uses `computeStreak(...).thisWeekDone` from `streak.js`).
   - **Suggested order:** (1) avatar + sheet with photo, name and deník; (2) stats +
-    moving Začít znovu / Napiš mi; (3) themes. The Quest dne pill could later sit next
-    to the avatar.
+    moving Začít znovu / Napiš mi; (3) themes. The Quest dne pill now sits in the top
+    row too (left).
 - **Syncing progress across devices (later)**, so the phone and the computer know
   the same completed quests. This would need an account or a small online storage
   service. Because progress is already stored by ID, it can be moved there later.
