@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Side Quest Generátor</title>
+  <!-- Barva lišty prohlížeče na telefonu (přepíše ji zvolený motiv) -->
+  <meta name="theme-color" content="#F4E5A7">
+
+  <!-- Barevný motiv: načte se hned, aby barvy při otevření neproblikly (soubor musí být ve stejné složce) -->
+  <script src="themes.js"></script>
+  <script>applyTheme(loadThemeCode());</script>
 
   <!-- Ikona v záložce prohlížeče, na ploše telefonu (iPhone) a nastavení appky pro Android -->
   <link rel="icon" type="image/png" href="icon.png">
@@ -16,12 +22,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
 
   <style>
-    /* ===== Barvy (měníš je na jednom místě) ===== */
+    /* ===== Barvy =====
+       Výchozí motiv Víno. Ostatní motivy (Levandule, Šalvěj, Noc) jsou v themes.js
+       a přepíšou tyhle proměnné hned při otevření stránky. */
     :root {
-      --wine: #772C3A;
-      --cream: #F4E5A7;
-      --brown: #35211F;
-      --pink: #E8C5C3;
+      --wine: #772C3A;     /* hlavní barva */
+      --cream: #F4E5A7;    /* pozadí */
+      --brown: #35211F;    /* text */
+      --pink: #E8C5C3;     /* jemné plochy */
+      --field: #FFFAF0;    /* pole formulářů */
+      --shadow-rgb: 53, 33, 31;
+      --wine-rgb: 119, 44, 58;
+      --pink-rgb: 232, 197, 195;
+      --backdrop: rgba(53, 33, 31, 0.55);
     }
 
     * { box-sizing: border-box; }
@@ -201,7 +214,7 @@
     }
 
     @media (hover: hover) {
-      .category:hover { background: rgba(232, 197, 195, 0.6); }
+      .category:hover { background: rgba(var(--pink-rgb), 0.6); }
     }
 
     /* Vybraná možnost: plná vínová "pilulka" s ✓ (nevybraná je jen obrys) */
@@ -232,7 +245,7 @@
       font-size: 1.05rem;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 6px 16px rgba(53, 33, 31, 0.25);
+      box-shadow: 0 6px 16px rgba(var(--shadow-rgb), 0.25);
       transition: transform 0.15s, background 0.2s;
     }
 
@@ -251,7 +264,7 @@
       justify-content: center;
       background: var(--pink);
       border-radius: 20px;
-      box-shadow: 0 8px 24px rgba(119, 44, 58, 0.15);
+      box-shadow: 0 8px 24px rgba(var(--wine-rgb), 0.15);
     }
 
     .card-level {
@@ -440,10 +453,10 @@
       border-radius: 20px;
       background: var(--cream);
       color: var(--brown);
-      box-shadow: 0 12px 40px rgba(53, 33, 31, 0.35);
+      box-shadow: 0 12px 40px rgba(var(--shadow-rgb), 0.35);
     }
 
-    .journal::backdrop { background: rgba(53, 33, 31, 0.55); }
+    .journal::backdrop { background: var(--backdrop); }
 
     /* Když je deník otevřený, stránka pod ním se neposouvá */
     body:has(.journal[open]) { overflow: hidden; }
@@ -583,7 +596,7 @@
     .filters-confirm {
       background: var(--wine);
       color: var(--cream);
-      box-shadow: 0 6px 16px rgba(119, 44, 58, 0.25);
+      box-shadow: 0 6px 16px rgba(var(--wine-rgb), 0.25);
     }
 
     .filters-reset {
@@ -593,7 +606,7 @@
 
     @media (hover: hover) {
       .filters-confirm:hover { background: var(--brown); }
-      .filters-reset:hover:not(:disabled) { background: rgba(232, 197, 195, 0.6); }
+      .filters-reset:hover:not(:disabled) { background: rgba(var(--pink-rgb), 0.6); }
     }
 
     .filters-confirm:active:not(:disabled),
@@ -677,11 +690,17 @@
       padding: 12px 14px;
       border: 1.5px solid var(--wine);
       border-radius: 14px;
-      background: #fffaf0;
+      background: var(--field);
       color: var(--brown);
       font-family: inherit;
       font-size: 16px;
       line-height: 1.45;
+    }
+
+    /* Nápověda v prázdném políčku: barva textu, jen slabší (čitelná i v motivu Noc) */
+    .feedback-field::placeholder {
+      color: var(--brown);
+      opacity: 0.5;
     }
 
     textarea.feedback-field {
@@ -942,6 +961,57 @@
       color: var(--wine);
     }
 
+    /* Výběr barevného motivu: kolečko (hlavní barva + pozadí) a název */
+    .theme-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .theme-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 6px 2px;
+      border: none;
+      border-radius: 14px;
+      background: none;
+      color: var(--brown);
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .theme-swatch {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(var(--shadow-rgb), 0.25);
+    }
+
+    .theme-option.active .theme-swatch {
+      outline: 3px solid var(--wine);
+      outline-offset: 2px;
+    }
+
+    .theme-option.active { font-weight: 600; }
+
+    /* ✓ na vybraném motivu */
+    .theme-option.active .theme-swatch::after {
+      content: "✓";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--theme-check);
+    }
+
     .profile-levels {
       margin: 10px 0 0;
       font-size: 0.85rem;
@@ -1052,7 +1122,7 @@
       margin: 4px auto 0;
       border-radius: 16px;
       background: var(--wine);
-      box-shadow: 0 8px 24px rgba(53, 33, 31, 0.3);
+      box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.3);
     }
 
     .share-photo-row {
@@ -1259,6 +1329,10 @@
         <div class="profile-stat"><span class="profile-stat-num" id="stat-daily">0</span><span>questů dne</span></div>
       </div>
       <p class="profile-levels" id="stat-levels"></p>
+
+      <h3>Barvy</h3>
+      <!-- Barevné motivy (doplní skript podle THEMES v themes.js); platí hned po klepnutí -->
+      <div class="theme-options" id="theme-options"></div>
 
       <div class="filters-actions">
         <button class="filters-confirm" id="journal-open">Můj deník 📖</button>
@@ -3045,6 +3119,42 @@
         .map(level => levelNames[level] + " " + (QUESTS[level].length - remainingQuests(level).length) + "/" + QUESTS[level].length)
         .join(" · ");
     }
+
+    // ----- Barevné motivy (THEMES v themes.js) -----
+    // Klepnutí motiv rovnou přepne a uloží (jen v tomhle prohlížeči). Obrázek pro sdílení
+    // zůstává vždy vínový (barvy značky).
+    const themeOptionsBox = document.getElementById("theme-options");
+    Object.entries(THEMES).forEach(([code, theme]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "theme-option";
+      button.dataset.theme = code;
+      const swatch = document.createElement("span");
+      swatch.className = "theme-swatch";
+      // Kolečko: uprostřed hlavní barva, okolo pozadí motivu
+      swatch.style.background = "radial-gradient(circle, " + theme.wine + " 0 52%, " + theme.cream + " 55%)";
+      swatch.style.setProperty("--theme-check", theme.cream);
+      const label = document.createElement("span");
+      label.textContent = theme.name;
+      button.append(swatch, label);
+      button.addEventListener("click", () => {
+        saveThemeCode(code);
+        applyTheme(code);
+        renderThemeOptions();
+      });
+      themeOptionsBox.appendChild(button);
+    });
+
+    function renderThemeOptions() {
+      const current = loadThemeCode();
+      const active = document.documentElement.dataset.theme || current;
+      themeOptionsBox.querySelectorAll(".theme-option").forEach(b => {
+        const on = b.dataset.theme === active;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
+    }
+    renderThemeOptions();
 
     // Otevření profilu (kolečko i odznak streaku), zavření ✕ / Esc / klepnutím vedle
     async function openProfile() {

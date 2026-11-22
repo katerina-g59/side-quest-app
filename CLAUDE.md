@@ -66,7 +66,24 @@ A small web page that gives overwhelmed young women working in corporate a rando
         bug reports
       - it's per browser / device
     - „Začít znovu" keeps the photo and the name.
-  - **Still to do:** colour themes, and a better photo crop (see roadmap).
+  - **Colour themes (phase 2, Nov 2026):** section „Barvy" in the profile (between
+    Statistiky and Můj deník).
+    - **The picker:** 4 round swatches (theme colour in the middle, background around)
+      with names: **Víno** (default), **Levandule**, **Šalvěj** and **Noc** (dark, with
+      **yellow** as the main colour; the owner rejected pink).
+    - One tap switches the whole app straight away (no confirm). The chosen one gets a
+      ring + ✓ and `aria-pressed`.
+    - **How it works:** `themes.js` defines the palettes. `applyTheme(code)` sets the
+      CSS variables on `<html>`, `data-theme`, and `<meta name="theme-color">` (the
+      phone's browser bar).
+    - It runs **in `<head>`** with the saved choice, so the page never flashes wine first.
+    - **Storage:** the choice is saved in localStorage key `sideQuestTheme` (try/catch;
+      unknown → Víno; if storage is blocked it still switches until the app closes).
+      „Začít znovu" keeps it.
+    - **The share image (Instagram story) always stays brand wine** (owner's decision);
+      the canvas uses fixed colours, not the theme.
+    - **Same icon:** the home-screen icon and manifest stay wine.
+  - **Still to do:** a better photo crop (see roadmap).
 - **„🌟 Quest dne" (Nov 2026):** one shared quest for everyone per day.
   - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne",
     alone under the card (`.extras` row; it used to sit next to „Můj deník 📖", which
@@ -324,9 +341,23 @@ A small web page that gives overwhelmed young women working in corporate a rando
   …/side-quest-app/tests.html.
   - It checks the streak calculation with made-up dates (3 weeks in a row, gap,
     New Year week, Sunday/Monday, empty current week, undated, longest, plurals,
-    milestones, badge, future dates) and shows ✅/❌ plus „27 / 27 prošlo ✅".
+    milestones, badge, future dates).
+  - It also checks the **readability of every colour theme**: WCAG contrast ≥ 4.5 for
+    each text/background pair in `THEME_PAIRS`, i.e.
+    - text on background, main colour on background, and button text on the main colour
+    - text on the „Dej mi side quest" button
+    - text and main colour on the card
+    - text in form fields
+  - It shows ✅/❌ plus „57 / 57 prošlo ✅".
+  - **After changing a theme colour, open `tests.html`.** In Šalvěj the green was
+    darkened to `#44604C` because the first shade only reached 4.2 on the card.
   - **Open it after every change to the streak.** New cases go in as more `check(...)`
     lines.
+- `themes.js` – the colour themes:
+  - `THEMES`, `applyTheme`, `loadThemeCode` / `saveThemeCode`, plus `contrastRatio` and
+    `THEME_PAIRS` for the tests
+  - loaded in `<head>` of `index.html` and by `tests.html`, so it must stay in the same
+    folder
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `supabase/functions/feedback-email/index.ts` – backup of the Edge Function that emails
@@ -515,8 +546,17 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
    are in Czech too.
 
 ## Look
-- Colors (defined once in `:root` in `index.html`): wine `#772C3A`, cream `#F4E5A7`,
+- Colors (the Víno defaults in `:root` in `index.html`): wine `#772C3A`, cream `#F4E5A7`,
   dark brown `#35211F`, dusty pink `#E8C5C3`.
+- **The variables are roles, not fixed colours** (other themes in `themes.js` replace
+  them):
+  - `--wine` = main colour, `--cream` = background, `--brown` = text,
+    `--pink` = soft surfaces, `--field` = form fields
+  - `--shadow-rgb` / `--wine-rgb` / `--pink-rgb` are for `rgba(var(--x-rgb), a)`
+    shadows and hovers; `--backdrop` is behind popups
+  - **Never hard-code a colour in CSS** (it would break the other themes, especially
+    Noc, where the roles swap: dark background, light text, yellow main colour).
+  - The only fixed colours are on the share image canvas, which is always wine.
 - Fonts (Google Fonts): Playfair Display for headings and quest text, Montserrat for
   everything else.
 - Must also look good on a phone.
@@ -564,6 +604,16 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
       - Začít znovu keeps the photo
       - no network request contains the photo
     - Photo decoding needs real time in headless Edge (busy loop), as with sharing.
+  - Themes:
+    - `tests.html` (contrast) all ✅
+    - in the app: each theme switches background, title, button, card, popups and the
+      browser bar; the choice survives a reload with no flash (check `--cream` at the
+      very start of `<body>`)
+    - an unknown saved value → Víno; blocked storage still switches; Začít znovu keeps
+      the theme
+    - Noc form fields are dark with light text; the share image stays wine
+    - Headless Edge doesn't run CSS transitions: add `*{transition:none!important}` in
+      the test copy before comparing computed colours.
   - Streak: `tests.html` shows all ✅. In the app:
     - the badge + profile text + hint, Hotovo → +1, Zpět → back
     - milestone celebration once (none on load, gone after Zpět)
@@ -629,8 +679,13 @@ writing code.
     screen is lightened.
   - **Phase 2:**
     - ~~**profile photo**~~ done (Nov 2026): centre crop, 256×256, localStorage only
-    - ⭐ **still to do: colour themes:** Víno (default), Levandule, Šalvěj, Noc (dark).
-      Swap the 4 `:root` colours and check contrast everywhere, incl. the share image.
+    - ~~**colour themes**~~ done (Nov 2026): Víno, Levandule, Šalvěj, Noc (yellow), see
+      above
+  - **More colours (owner's wish):**
+    - more app themes (each one only needs a new entry in `THEMES`; `tests.html`
+      checks its contrast automatically)
+    - more colour options for the share image / card (today always brand wine), e.g.
+      picking a card colour or matching the chosen theme
   - **Better photo crop (owner's wish):** let her move / zoom the photo inside the
     circle before saving, instead of the fixed centre crop. E.g. drag + pinch on a
     preview circle, then save the chosen 256×256 square.

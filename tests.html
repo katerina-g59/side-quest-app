@@ -44,8 +44,9 @@
     <ul id="results"></ul>
   </main>
 
-  <!-- Stejný výpočet, jaký používá appka -->
+  <!-- Stejné soubory, jaké používá appka -->
   <script src="streak.js"></script>
+  <script src="themes.js"></script>
   <script>
     const results = [];
 
@@ -126,6 +127,20 @@
 
       // 13) Data v budoucnu (např. při náhledu ?datum=) se nepočítají
       check("Quest „z budoucnosti“ se nepočítá", computeStreak(done("2026-12-01"), "2026-11-20").current, 0);
+      // ===== Barevné motivy: je všechno čitelné? =====
+      // Kontrast podle WCAG: běžný text potřebuje poměr aspoň 4,5 (1 = stejné barvy, 21 = černá na bílé)
+      check("Kontrola výpočtu: černá na bílé = 21", Math.round(contrastRatio("#000000", "#FFFFFF")), 21);
+      check("Motivy: Víno, Levandule, Šalvěj, Noc", Object.values(THEMES).map(t => t.name), ["Víno", "Levandule", "Šalvěj", "Noc"]);
+      Object.values(THEMES).forEach(theme => {
+        THEME_PAIRS.forEach(([fg, bg, label]) => {
+          const ratio = contrastRatio(theme[fg], theme[bg]);
+          results.push({
+            name: theme.name + ": " + label + " – kontrast " + ratio.toFixed(1),
+            ok: ratio >= 4.5,
+            detail: ratio >= 4.5 ? "" : "potřeba aspoň 4,5 – barvy " + theme[fg] + " na " + theme[bg]
+          });
+        });
+      });
     } catch (e) {
       results.push({ name: "Test spadl s chybou", ok: false, detail: String(e) });
     }
