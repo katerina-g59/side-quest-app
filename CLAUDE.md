@@ -4,9 +4,49 @@
 A small web page that gives overwhelmed young women working in corporate a random
 "side quest": a small, fun real-life challenge (e.g. "take a different route home").
 
+- **Main screen (since the profile, Nov 2026)** has only, top to bottom:
+  - the top row: streak badge + avatar, right-aligned
+  - the title + subtitle, and the streak celebration pill (only briefly)
+  - the levels + filter icon + filter tags
+  - „Dej mi side quest ✨" and the card
+  - the „🌟 Quest dne" pill
+
+  Deník, „Začít znovu", „Napiš mi 💌", the Instagram link and the credit line are in
+  the profile. The owner wants the main screen light; don't add things back there.
+- **👤 „Můj profil" (phase 1, Nov 2026):**
+  - **Avatar:** a 44 px wine circle at the top right (`#profile-open`), showing the
+    first letter of the name (Playfair) or „★".
+  - **Streak badge:** right next to it (`#streak-badge`): „🔥 3" when a quest is done
+    this week, „⚠ 3" when the streak is alive but this week is empty, hidden at 0
+    (`streakBadge()` in `streak.js`). Both open the profile.
+  - **The sheet:** a `<dialog id="profile">`, full-screen on phones (≤ 600 px, slides
+    up), a centred window on desktop; ✕ / Esc / tap outside. Top to bottom:
+    1. A big circle + greeting „Ahoj, Káťo ✨" (or „Ahoj ✨"), and the field „Jak tě mám
+       oslovovat?" (placeholder „např. Káťo"). It's saved while typing.
+       - The owner chose this wording so people type the vocative themselves; the app
+         doesn't decline names.
+       - The name goes in localStorage key `sideQuestProfileName` (max 30, try/catch),
+         shown only via `textContent`.
+    2. Streak: „🔥 3 týdny v řadě" (or „Zatím žádný streak. Stačí 1 quest za týden ✨"),
+       the hint „Tento týden ti ještě chybí quest 🔥", and „Nejdelší streak: X".
+    3. Stats:
+       - two pink tiles, „splněno celkem" (deník entries of known quests, incl.
+         undated and special) and „questů dne"
+       - the per-level line „Lehká 5/43 · Střední 0/31 · Těžká 0/31"
+    4. „Můj deník 📖" (primary button; the deník opens over the profile).
+    5. Quiet footer: „Napiš mi 💌" · @after_hours_project_, „Vytvořeno v rámci
+       30hodinové challenge" (owner changed 90 → 30), and „Začít znovu" (keeps the name).
+  - **„Questů dne" count** (`countDailyDone`): a deník entry counts if its id was the
+    Quest dne on its own date (override first, else `automaticDailyQuest`).
+    - Calculated, not stored.
+    - All overrides are fetched once when the profile first opens (`fetchAllOverrides`);
+      if that fails, there are no overrides.
+  - `updateProgress()` refreshes the stats while the profile is open.
+  - **Phase 2 (not built):** profile photo + colour themes (see roadmap).
 - **„🌟 Quest dne" (Nov 2026):** one shared quest for everyone per day.
-  - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne" next
-    to „Můj deník 📖" under the card (`.extras` row). It becomes „🌟 Quest dne ✓" when
+  - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne",
+    alone under the card (`.extras` row; it used to sit next to „Můj deník 📖", which
+    moved into the profile). It becomes „🌟 Quest dne ✓" when
     today's is done. The owner rejected a big wine card at the top: the app felt heavy
     and samey. Keep it subtle.
   - Tapping the pill opens a popup (`<dialog id="daily">`, Filtry style: ✕, tap
@@ -67,13 +107,15 @@ A small web page that gives overwhelmed young women working in corporate a rando
     „Tento týden ti ještě chybí quest 🔥" shows. It only drops to 0 after a whole week
     without a quest.
   - **"Today":** `streakToday()` = Prague date, or the `?datum=` date when testing.
-  - **Main screen:** a small wine text line under the subtitle, „🔥 3 týdny v řadě"
-    (no box), plus the hint when needed. Hidden when the streak is 0.
+  - **Main screen:** only the badge next to the avatar („🔥 3" / „⚠ 3", hidden at 0).
+    The full text and hint are in the profile. (Until the profile it was a text line
+    under the subtitle.)
   - **Deník:** „Nejdelší streak: X týdnů 🔥" at the top (hidden when 0).
   - **Plurals** (`weeksText`): 1 týden · 2–4 týdny · 0 and 5+ týdnů.
   - **Milestones 2, 4, 8, 12** (`streakMilestone`):
-    - Right after a „Hotovo ✓" (main card or Quest dne) that reaches one, the streak
-      line shows a kind message (`streakMessages`) on a pink pill for 6 s.
+    - Right after a „Hotovo ✓" (main card or Quest dne) that reaches one, a kind
+      message (`streakMessages`) shows on a pink pill under the subtitle
+      (`#streak-toast`) for 6 s.
     - It disappears straight away if „Zpět" / „Začít znovu" drops the streak below
       the milestone.
     - Each milestone is celebrated **only once ever**. Shown ones are remembered in
@@ -187,14 +229,15 @@ A small web page that gives overwhelmed young women working in corporate a rando
     thrown away (`shareSession`).
 - Switching to a different level clears the card. Clicking the already selected level
   does nothing.
-- „Můj deník 📖" (under the card) opens the quest journal: a window listing all
+- „Můj deník 📖" (in the profile) opens the quest journal: a window listing all
   completed quests by level, newest first, with the completion date (e.g. „6. 11. 2026").
   Quests completed before dates were saved have no date and come last. View only.
 - Each level shows its progress, e.g. „Splněno 3/20". Progress is per level only, not
   per category.
 - When a level is fully completed, a celebration message appears.
-- „Začít znovu" (with a confirmation box) clears all progress.
-- **„Napiš mi 💌"** (in the footer, next to the Instagram link) opens a popup in the
+- „Začít znovu" (in the profile, with a confirmation box) clears all progress and the
+  streak celebrations, but keeps the name.
+- **„Napiš mi 💌"** (in the profile footer, next to the Instagram link) opens a popup in the
   Filtry style (✕, tap outside, Esc) for sending a message, saved to the Supabase table
   `feedback`:
   - Choose a type: „Chyba 🐛" (`chyba`), „Zpětná vazba 📩" (`zpetna_vazba`),
@@ -249,15 +292,15 @@ A small web page that gives overwhelmed young women working in corporate a rando
     what can be picked, `toggleDraft()` holds the „Všechny" rules, `removeFilter()` is
     used by the tags.
 - `streak.js` – the weekly streak calculation:
-  - `streakWeekIndex`, `computeStreak`, `weeksText`, `streakMilestone`,
-    `STREAK_MILESTONES`
+  - `streakWeekIndex`, `computeStreak`, `weeksText`, `streakBadge` („🔥 3" / „⚠ 3" /
+    ""), `streakMilestone`, `STREAK_MILESTONES`
   - pure functions with no page access, loaded by `index.html` **and** `tests.html`
     with `<script src>`, so it must stay in the same folder
 - `tests.html` – automated tests: open it in the browser, by double-clicking or at
   …/side-quest-app/tests.html.
   - It checks the streak calculation with made-up dates (3 weeks in a row, gap,
     New Year week, Sunday/Monday, empty current week, undated, longest, plurals,
-    milestones, future dates) and shows ✅/❌ plus „24 / 24 prošlo ✅".
+    milestones, badge, future dates) and shows ✅/❌ plus „27 / 27 prošlo ✅".
   - **Open it after every change to the streak.** New cases go in as more `check(...)`
     lines.
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
@@ -476,8 +519,17 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
     - Headless Edge's `--virtual-time-budget` doesn't wait for decoding big images or
       `createImageBitmap`: give it real time (a busy loop) or check the canvases
       directly.
+  - Profile:
+    - The main screen has no deník / Začít znovu / Napiš mi / footer.
+    - The avatar shows ★ or the letter, and the name survives a reload and is shown as
+      plain text (no HTML).
+    - The badge shows ⚠ / 🔥 / hidden, and the badge + avatar open the profile.
+    - The greeting, streak + hint + longest, and stats (total, per level, Quest dne
+      count) are right.
+    - Deník / Napiš mi open over the profile; Začít znovu keeps the name.
+    - The tests reload the page mid-way, so carry the results over in sessionStorage.
   - Streak: `tests.html` shows all ✅. In the app:
-    - the line + hint, Hotovo → +1, Zpět → back
+    - the badge + profile text + hint, Hotovo → +1, Zpět → back
     - milestone celebration once (none on load, gone after Zpět)
     - Quest dne Hotovo counts
     - deník longest
@@ -535,7 +587,16 @@ writing code.
 - ~~**Quest dne**~~ – done (Nov 2026): daily shared quest, special days, special-only quests.
 - ~~**Streak**~~ – done (Nov 2026) as a gentle **weekly** streak (any quest counts), see
   above. (The original idea was days in a row of Quest dne; the owner chose weeks.)
-- ⭐ **Profile ("Můj profil") – liked by the owner, on the back burner (Nov 2026).** Goal:
+- **Profile ("Můj profil"):**
+  - ~~**Phase 1**~~ done (22 Nov 2026): avatar (letter / ★) + streak badge, sheet with
+    name, streak, stats, deník, Napiš mi, Instagram, credit and Začít znovu; the main
+    screen is lightened.
+  - ⭐ **Phase 2, still to do:**
+    - **profile photo:** in the avatar + the big circle; never leaves the browser;
+      downscaled to e.g. 256×256 in localStorage
+    - **colour themes:** Víno (default), Levandule, Šalvěj, Noc (dark); swap the 4
+      `:root` colours and check contrast everywhere, incl. the share image
+  - The original idea notes follow. Goal:
   a lighter main screen (the owner finds the app getting heavy and samey).
   - **Entry:** a round avatar button in the top-right corner (her photo, else her first
     letter, else a star). It opens a full-screen sheet (a `<dialog>`, slides up on a

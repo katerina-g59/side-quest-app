@@ -68,6 +68,13 @@ function weeksText(n) {
   return n + " " + word;
 }
 
+// Odznak vedle profilového kolečka: "🔥 3" (tento týden už je quest),
+// "⚠ 3" (streak běží, ale tento týden ještě chybí quest), "" = schovat (streak 0)
+function streakBadge(streak) {
+  if (!streak || streak.current === 0) return "";
+  return (streak.thisWeekDone ? "🔥 " : "⚠ ") + streak.current;
+}
+
 // Oslava milníku: které milníky (2, 4, 8, 12) streak už dosáhl a ještě nebyly ukázané?
 // shown = už ukázané milníky (z paměti prohlížeče). Vrátí milník k oslavě (ten nejvyšší,
 // nebo null) a nový seznam ukázaných. Každý milník se ukáže jen jednou.

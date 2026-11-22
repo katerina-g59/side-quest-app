@@ -119,7 +119,12 @@
       check("Skok rovnou na 9 → slaví se jen 8, a 2/4/8 se označí jako ukázané", [streakMilestone([], 9).celebrate, streakMilestone([], 9).shown], [8, [2, 4, 8]]);
       check("Po přerušené sérii se 2 už neslaví podruhé", streakMilestone([2, 4], 2).celebrate, null);
 
-      // 12) Data v budoucnu (např. při náhledu ?datum=) se nepočítají
+      // 12) Odznak vedle profilového kolečka
+      check("Odznak: tento týden splněno → „🔥 3“", streakBadge(computeStreak(done("2026-11-02", "2026-11-09", "2026-11-18"), "2026-11-20")), "🔥 3");
+      check("Odznak: streak běží, tento týden prázdný → „⚠ 3“", streakBadge(computeStreak(done("2026-11-02", "2026-11-09", "2026-11-16"), "2026-11-24")), "⚠ 3");
+      check("Odznak: streak 0 → schovaný (prázdný text)", streakBadge(computeStreak(done("2026-11-02"), "2026-11-24")), "");
+
+      // 13) Data v budoucnu (např. při náhledu ?datum=) se nepočítají
       check("Quest „z budoucnosti“ se nepočítá", computeStreak(done("2026-12-01"), "2026-11-20").current, 0);
     } catch (e) {
       results.push({ name: "Test spadl s chybou", ok: false, detail: String(e) });

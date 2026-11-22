@@ -763,30 +763,166 @@
     }
 
     /* Úzké obrazovky (mobil) */
-    /* ===== 🔥 Streak pod podnadpisem (jen text, žádný box) ===== */
-    .streak {
-      margin: -18px 0 24px;
+    /* ===== Horní řádek: streak + profilové kolečko ===== */
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      margin: -12px 0 4px;
+    }
+
+    .avatar-open {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 2px solid var(--wine);
+      border-radius: 50%;
+      background: var(--wine);
+      color: var(--cream);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    @media (hover: hover) {
+      .avatar-open:hover { background: var(--cream); color: var(--wine); }
+    }
+
+    /* "🔥 3" / "⚠ 3" vedle kolečka (klepnutí otevře profil) */
+    .streak-badge {
+      min-height: 44px;
+      padding: 0 8px;
+      border: none;
+      background: none;
+      color: var(--wine);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Krátká oslava milníku streaku pod podnadpisem */
+    /* (bez oslavy zabírá řádek 0 px, mezera pod podnadpisem zůstane stejná) */
+    .streak-toast-row { margin: 0; }
+
+    .streak-toast {
+      display: inline-block;
+      margin: -14px 0 22px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--pink);
       color: var(--wine);
       font-size: 0.9rem;
       font-weight: 600;
+      animation: fadeIn 0.5s ease;
     }
 
     .streak-hint {
-      display: block;
-      margin-top: 2px;
-      font-size: 0.78rem;
-      font-weight: 500;
-      opacity: 0.8;
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      opacity: 0.85;
     }
 
-    /* Krátká oslava milníku */
-    .streak.celebrate #streak-text {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 999px;
-      background: var(--pink);
-      animation: fadeIn 0.5s ease;
+    /* ===== Okno "Můj profil" ===== */
+    .profile { text-align: center; }
+
+    .profile[open] { animation: slideUp 0.3s ease; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
+
+    .profile h3 { margin-top: 28px; }
+
+    .profile-hello { margin-top: 8px; }
+
+    .profile-avatar {
+      width: 84px;
+      height: 84px;
+      margin: 0 auto 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--wine);
+      color: var(--cream);
+      font-family: 'Playfair Display', serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+    }
+
+    .profile-greeting {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      color: var(--wine);
+    }
+
+    .profile .feedback-label { margin-top: 18px; }
+
+    .profile-name { text-align: center; }
+
+    .profile-streak p { margin: 0; }
+
+    .profile-streak-now {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      color: var(--wine);
+    }
+
+    .profile-streak-longest {
+      margin-top: 6px !important;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .profile-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .profile-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 14px 8px;
+      border-radius: 14px;
+      background: var(--pink);
+      font-size: 0.8rem;
+    }
+
+    .profile-stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--wine);
+    }
+
+    .profile-levels {
+      margin: 10px 0 0;
+      font-size: 0.85rem;
+    }
+
+    .profile-footer {
+      margin-top: 32px;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .profile-footer p { margin: 0; }
+
+    .profile-links a { color: var(--wine); font-weight: 600; }
+
+    .profile-credit { opacity: 0.75; }
+
+    .profile .reset { margin-top: 16px; min-height: 44px; }
 
     .journal-streak {
       margin: 4px 0 0;
@@ -961,17 +1097,36 @@
       .category { min-height: 44px; }
       .filter-tag { min-height: 40px; }
     }
+
+    /* Na telefonu je profil přes celou obrazovku (vyjede zespodu) */
+    @media (max-width: 600px) {
+      .profile {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+        margin: 0;
+        border-radius: 0;
+      }
+    }
   </style>
 </head>
 <body>
   <main class="app">
+    <!-- Horní řádek vpravo: streak ("🔥 3" / "⚠ 3") a profilové kolečko -->
+    <div class="topbar">
+      <button class="streak-badge" id="streak-badge" hidden></button>
+      <button class="avatar-open" id="profile-open" aria-label="Můj profil" title="Můj profil">
+        <span id="avatar-letter" aria-hidden="true">★</span>
+      </button>
+    </div>
+
     <h1>Side Quest Generátor</h1>
     <p class="subtitle">Malé výzvy pro velký den. Vyber si úroveň a nech se překvapit.</p>
 
-    <!-- 🔥 Týdenní streak (skrytý, když je 0) -->
-    <div class="streak" id="streak" hidden aria-live="polite">
-      <span id="streak-text"></span>
-      <span class="streak-hint" id="streak-hint" hidden>Tento týden ti ještě chybí quest 🔥</span>
+    <!-- Krátká oslava streaku (2, 4, 8, 12 týdnů) – na pár sekund -->
+    <div class="streak-toast-row">
+      <p class="streak-toast" id="streak-toast" role="status" hidden></p>
     </div>
 
     <div class="label">Vyber úroveň</div>
@@ -1020,20 +1175,57 @@
       </div>
     </div>
 
-    <!-- Pod kartou: Quest dne (otevře okno) a deník -->
+    <!-- Pod kartou: Quest dne (otevře okno). Deník, Napiš mi a Začít znovu jsou v profilu. -->
     <div class="extras">
       <button class="journal-open" id="daily-open">🌟 Quest dne</button>
-      <button class="journal-open" id="journal-open">Můj deník 📖</button>
     </div>
-
-    <button class="reset" id="reset">Začít znovu</button>
-
-    <footer class="footer">
-      Vytvořeno v rámci 90hodinové challenge ·
-      <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a> ·
-      <button class="footer-link" id="feedback-open">Napiš mi 💌</button>
-    </footer>
   </main>
+
+  <!-- Okno "Můj profil": jméno, streak, statistiky, deník, Napiš mi, Začít znovu.
+       Všechno se ukládá jen v tomhle prohlížeči. -->
+  <dialog class="journal profile" id="profile" aria-labelledby="profile-title">
+    <div class="journal-inner">
+      <div class="journal-header">
+        <h2 id="profile-title" tabindex="-1" autofocus>Můj profil</h2>
+        <button class="icon-close" id="profile-close" aria-label="Zavřít">✕</button>
+      </div>
+
+      <div class="profile-hello">
+        <div class="profile-avatar" aria-hidden="true"><span id="profile-avatar-letter">★</span></div>
+        <p class="profile-greeting" id="profile-greeting">Ahoj ✨</p>
+        <label class="feedback-label" for="profile-name">Jak tě mám oslovovat?</label>
+        <input class="feedback-field profile-name" id="profile-name" type="text" maxlength="30"
+               placeholder="např. Káťo" autocomplete="off" spellcheck="false">
+      </div>
+
+      <h3>Streak</h3>
+      <div class="profile-streak">
+        <p class="profile-streak-now" id="streak-text"></p>
+        <p class="streak-hint" id="streak-hint" hidden>Tento týden ti ještě chybí quest 🔥</p>
+        <p class="profile-streak-longest" id="profile-longest" hidden></p>
+      </div>
+
+      <h3>Statistiky</h3>
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-num" id="stat-total">0</span><span>splněno celkem</span></div>
+        <div class="profile-stat"><span class="profile-stat-num" id="stat-daily">0</span><span>questů dne</span></div>
+      </div>
+      <p class="profile-levels" id="stat-levels"></p>
+
+      <div class="filters-actions">
+        <button class="filters-confirm" id="journal-open">Můj deník 📖</button>
+      </div>
+
+      <div class="profile-footer">
+        <p class="profile-links">
+          <button class="footer-link" id="feedback-open">Napiš mi 💌</button> ·
+          <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a>
+        </p>
+        <p class="profile-credit">Vytvořeno v rámci 30hodinové challenge</p>
+        <button class="reset" id="reset">Začít znovu</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Deník: okno se splněnými questy (jen na prohlížení) -->
   <dialog class="journal" id="journal" aria-labelledby="journal-title">
@@ -1304,6 +1496,7 @@
         el.textContent = "Splněno " + count + "/" + list.length;
       });
       renderDaily();  // karta Questu dne ukazuje, jestli je splněný
+      if (profileDialog.open) renderProfileStats();  // otevřený profil (např. po "Začít znovu")
     }
 
     // Název kategorie podle kódu, např. "metime" → "Me time 💄" (neznámý kód → prázdný text)
@@ -2539,9 +2732,11 @@
       12: "🔥 12 týdnů! Čtvrt roku malých dobrodružství 👑"
     };
 
-    const streakBox = document.getElementById("streak");
-    const streakText = document.getElementById("streak-text");
-    const streakHint = document.getElementById("streak-hint");
+    const streakBadgeButton = document.getElementById("streak-badge");   // "🔥 3" vedle kolečka
+    const streakToast = document.getElementById("streak-toast");         // krátká oslava
+    const streakText = document.getElementById("streak-text");           // v profilu
+    const streakHint = document.getElementById("streak-hint");           // v profilu
+    const profileLongest = document.getElementById("profile-longest");   // v profilu
     let streakCelebrationTimer = null;
     let streakCelebrating = 0;      // milník, který se právě slaví
 
@@ -2569,43 +2764,158 @@
       } catch (e) {}
     }
 
-    // Překreslí řádek "🔥 3 týdny v řadě" (skrytý, když je streak 0)
+    // Překreslí streak: odznak vedle kolečka ("🔥 3" / "⚠ 3", skrytý při 0) a část v profilu
     function renderStreak() {
       const s = currentStreak();
-      // Právě běží oslava: necháme ji doběhnout. Když ale streak mezitím klesl
-      // ("Zpět", "Začít znovu"), oslava hned zmizí.
-      if (streakCelebrationTimer) {
-        if (s.current >= streakCelebrating) return;
-        clearTimeout(streakCelebrationTimer);
-        streakCelebrationTimer = null;
-      }
-      streakBox.classList.remove("celebrate");
-      streakBox.hidden = s.current === 0;
-      streakText.textContent = "🔥 " + weeksText(s.current) + " v řadě";
+
+      const badge = streakBadge(s);
+      streakBadgeButton.hidden = !badge;
+      streakBadgeButton.textContent = badge;
+      streakBadgeButton.setAttribute("aria-label", "Streak: " + weeksText(s.current) + " v řadě"
+        + (s.missingThisWeek ? ", tento týden ti ještě chybí quest" : "") + ". Otevřít profil");
+
+      streakText.textContent = s.current > 0
+        ? "🔥 " + weeksText(s.current) + " v řadě"
+        : "Zatím žádný streak. Stačí 1 quest za týden ✨";
       streakHint.hidden = !s.missingThisWeek;
+      profileLongest.hidden = s.longest === 0;
+      profileLongest.textContent = "Nejdelší streak: " + weeksText(s.longest);
+
+      // Právě běží oslava, ale streak mezitím klesl ("Zpět", "Začít znovu") → hned zmizí
+      if (streakCelebrationTimer && s.current < streakCelebrating) hideStreakToast();
     }
 
-    // Po "Hotovo ✓": když streak právě dosáhl milníku, krátce ukáže milou zprávu
+    function hideStreakToast() {
+      clearTimeout(streakCelebrationTimer);
+      streakCelebrationTimer = null;
+      streakToast.hidden = true;
+    }
+
+    // Po "Hotovo ✓": když streak právě dosáhl milníku, na 6 s ukáže milou zprávu pod podnadpisem
     function celebrateStreak() {
       const result = streakMilestone(loadShownMilestones(), currentStreak().current);
       saveShownMilestones(result.shown);
       if (!result.celebrate) return;
       clearTimeout(streakCelebrationTimer);
       streakCelebrating = result.celebrate;
-      streakBox.hidden = false;
-      streakBox.classList.add("celebrate");
-      streakText.textContent = streakMessages[result.celebrate];
-      streakHint.hidden = true;
-      streakCelebrationTimer = setTimeout(() => {
-        streakCelebrationTimer = null;
-        renderStreak();
-      }, 6000);
+      streakToast.textContent = streakMessages[result.celebrate];
+      streakToast.hidden = false;
+      streakCelebrationTimer = setTimeout(hideStreakToast, 6000);
     }
 
     // Při otevření appky: milníky, které už streak má, se tiše označí jako ukázané
     // (žádná překvapivá oslava hned po spuštění)
     saveShownMilestones(streakMilestone(loadShownMilestones(), currentStreak().current).shown);
     renderStreak();
+
+    // ===== 👤 Můj profil =====
+    // Jméno je jediná nová věc v paměti prohlížeče (jen v tomhle prohlížeči, nikam se neposílá).
+    // Fotka a barevné motivy přijdou ve 2. fázi.
+    const PROFILE_NAME_KEY = "sideQuestProfileName";
+    const profileDialog = document.getElementById("profile");
+    const profileNameInput = document.getElementById("profile-name");
+    const profileGreeting = document.getElementById("profile-greeting");
+    let overridesCache = null;   // speciální dny (pro počet Questů dne), načtou se při otevření profilu
+
+    function loadProfileName() {
+      try {
+        const name = localStorage.getItem(PROFILE_NAME_KEY);
+        return typeof name === "string" ? name.slice(0, 30) : "";
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function saveProfileName(name) {
+      try {
+        if (name) localStorage.setItem(PROFILE_NAME_KEY, name);
+        else localStorage.removeItem(PROFILE_NAME_KEY);
+      } catch (e) {}
+    }
+
+    // Kolečko + pozdrav: první písmeno jména (nebo hvězdička) a "Ahoj, Káťo ✨" (nebo "Ahoj ✨")
+    function renderProfileName() {
+      const name = loadProfileName().trim();
+      const letter = name ? Array.from(name)[0].toUpperCase() : "★";
+      document.getElementById("avatar-letter").textContent = letter;
+      document.getElementById("profile-avatar-letter").textContent = letter;
+      profileGreeting.textContent = name ? "Ahoj, " + name + " ✨" : "Ahoj ✨";
+    }
+
+    // Jméno se ukládá rovnou při psaní
+    profileNameInput.addEventListener("input", () => {
+      saveProfileName(profileNameInput.value.trim().slice(0, 30));
+      renderProfileName();
+    });
+
+    // Všechny speciální dny najednou (malá tabulka). Když nejdou načíst → bez nich.
+    async function fetchAllOverrides() {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(SUPABASE_URL + "/rest/v1/daily_quest_overrides?select=date,quest_id",
+          { headers: { apikey: SUPABASE_KEY }, signal: controller.signal });
+        if (!response.ok) return {};
+        const rows = await response.json();
+        const map = {};
+        (Array.isArray(rows) ? rows : []).forEach(r => { if (r && r.date && r.quest_id) map[r.date] = r.quest_id; });
+        return map;
+      } catch (e) {
+        return {};
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    // Kolik Questů dne splnila: quest se počítá, když ho splnila v den, kdy byl Questem dne
+    // (speciální den má přednost). Počítá se z dat v deníku, nic nového se neukládá.
+    function countDailyDone(overrides) {
+      if (questsStatus !== "ready") return 0;
+      return doneEntries.filter(entry => {
+        if (!isStreakDate(entry.date)) return false;
+        const overrideId = overrides && overrides[entry.date];
+        const daily = (overrideId && questById(overrideId)) || automaticDailyQuest(entry.date);
+        return daily && daily.id === entry.id;
+      }).length;
+    }
+
+    // Statistiky v profilu (celkem, po úrovních, Questy dne)
+    function renderProfileStats() {
+      if (questsStatus !== "ready") {
+        document.getElementById("stat-total").textContent = doneEntries.length;
+        document.getElementById("stat-daily").textContent = "–";
+        document.getElementById("stat-levels").textContent = "Statistiky po úrovních se ukážou, až se načtou questy.";
+        return;
+      }
+      const known = doneEntries.filter(entry => questById(entry.id));
+      document.getElementById("stat-total").textContent = known.length;
+      document.getElementById("stat-daily").textContent = countDailyDone(overridesCache);
+      document.getElementById("stat-levels").textContent = Object.keys(levelNames)
+        .map(level => levelNames[level] + " " + (QUESTS[level].length - remainingQuests(level).length) + "/" + QUESTS[level].length)
+        .join(" · ");
+    }
+
+    // Otevření profilu (kolečko i odznak streaku), zavření ✕ / Esc / klepnutím vedle
+    async function openProfile() {
+      profileNameInput.value = loadProfileName();
+      renderProfileName();
+      renderStreak();
+      renderProfileStats();
+      profileDialog.showModal();
+      profileDialog.scrollTop = 0;
+      if (overridesCache === null && questsStatus === "ready") {
+        overridesCache = await fetchAllOverrides();
+        renderProfileStats();
+      }
+    }
+    document.getElementById("profile-open").addEventListener("click", openProfile);
+    streakBadgeButton.addEventListener("click", openProfile);
+    document.getElementById("profile-close").addEventListener("click", () => profileDialog.close());
+    profileDialog.addEventListener("click", e => {
+      if (e.target === profileDialog) profileDialog.close();
+    });
+
+    renderProfileName();
 
     // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====
     // Databáze dovolí veřejnému klíči zprávy jen přidávat, ne číst. Proto posíláme
