@@ -857,6 +857,43 @@
       font-weight: 700;
     }
 
+    /* Profilová fotka v obou kolečkách (malé vpravo nahoře, velké v profilu) */
+    .avatar-open,
+    .profile-avatar {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .avatar-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .profile-avatar {
+      padding: 0;
+      border: none;
+      cursor: pointer;
+    }
+
+    .profile-photo-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px 16px;
+      flex-wrap: wrap;
+      margin: -6px 0 6px;
+    }
+
+    .profile-photo-note {
+      margin: 0 0 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--wine);
+    }
+
     .profile-greeting {
       margin: 0;
       font-family: 'Playfair Display', serif;
@@ -1117,6 +1154,7 @@
     <div class="topbar">
       <button class="streak-badge" id="streak-badge" hidden></button>
       <button class="avatar-open" id="profile-open" aria-label="Můj profil" title="Můj profil">
+        <img class="avatar-photo" id="avatar-photo" alt="" hidden>
         <span id="avatar-letter" aria-hidden="true">★</span>
       </button>
     </div>
@@ -1191,7 +1229,17 @@
       </div>
 
       <div class="profile-hello">
-        <div class="profile-avatar" aria-hidden="true"><span id="profile-avatar-letter">★</span></div>
+        <!-- Kolečko: klepnutí vybere fotku (galerie nebo fotoaparát). Fotka zůstává jen v tomhle prohlížeči. -->
+        <button type="button" class="profile-avatar" id="profile-photo-circle" aria-label="Přidat fotku">
+          <img class="avatar-photo" id="profile-photo-big" alt="" hidden>
+          <span id="profile-avatar-letter" aria-hidden="true">★</span>
+        </button>
+        <div class="profile-photo-row">
+          <button type="button" class="share-link" id="profile-photo-pick">Přidat fotku 📷</button>
+          <button type="button" class="share-link" id="profile-photo-remove" hidden>Odebrat fotku</button>
+        </div>
+        <p class="profile-photo-note" id="profile-photo-note" role="status" hidden></p>
+        <input type="file" id="profile-photo-input" accept="image/*" hidden>
         <p class="profile-greeting" id="profile-greeting">Ahoj ✨</p>
         <label class="feedback-label" for="profile-name">Jak tě mám oslovovat?</label>
         <input class="feedback-field profile-name" id="profile-name" type="text" maxlength="30"
@@ -2833,14 +2881,117 @@
       } catch (e) {}
     }
 
-    // Kolečko + pozdrav: první písmeno jména (nebo hvězdička) a "Ahoj, Káťo ✨" (nebo "Ahoj ✨")
+    // ----- Profilová fotka -----
+    // SOUKROMÍ: fotka se jen zmenší a ořízne tady v prohlížeči a uloží se do jeho paměti
+    // (localStorage). Nikam se neposílá – žádný Supabase, žádný server, ani do sdílení.
+    const PROFILE_PHOTO_KEY = "sideQuestProfilePhoto";
+    const PROFILE_PHOTO_SIZE = 256;          // čtverec 256×256 px (asi 20–30 kB)
+    let profilePhotoMemory = null;           // když se fotka nedá uložit: drží se jen do zavření appky
+
+    // Uložená fotka, nebo "" (bere jen naši vlastní JPEG fotku, nic jiného)
+    function loadProfilePhoto() {
+      if (profilePhotoMemory) return profilePhotoMemory;
+      try {
+        const photo = localStorage.getItem(PROFILE_PHOTO_KEY);
+        return typeof photo === "string" && photo.startsWith("data:image/jpeg;base64,") ? photo : "";
+      } catch (e) {
+        return "";
+      }
+    }
+
+    // Uloží fotku ("" = smazat). Vrátí false, když to prohlížeč nedovolí (plná / zablokovaná paměť).
+    function saveProfilePhoto(photo) {
+      try {
+        if (photo) localStorage.setItem(PROFILE_PHOTO_KEY, photo);
+        else localStorage.removeItem(PROFILE_PHOTO_KEY);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Udělá z fotky malý čtverec ze středu: otočí se podle údajů z fotoaparátu (iPhone),
+    // ořízne na čtverec a rovnou zmenší na 256×256, takže ani obří fotka nezahltí paměť.
+    async function makeProfilePhoto(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) throw new Error("Prázdný obrázek");
+        const side = Math.min(w, h);
+        const canvas = document.createElement("canvas");
+        canvas.width = PROFILE_PHOTO_SIZE;
+        canvas.height = PROFILE_PHOTO_SIZE;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, PROFILE_PHOTO_SIZE, PROFILE_PHOTO_SIZE);
+        img.src = "";
+        return canvas.toDataURL("image/jpeg", 0.85);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function showProfilePhotoNote(text) {
+      const note = document.getElementById("profile-photo-note");
+      note.textContent = text;
+      note.hidden = !text;
+    }
+
+    // Kolečka + pozdrav: fotka, jinak první písmeno jména (nebo hvězdička); "Ahoj, Káťo ✨" (nebo "Ahoj ✨")
     function renderProfileName() {
       const name = loadProfileName().trim();
       const letter = name ? Array.from(name)[0].toUpperCase() : "★";
-      document.getElementById("avatar-letter").textContent = letter;
-      document.getElementById("profile-avatar-letter").textContent = letter;
+      const photo = loadProfilePhoto();
+      [["avatar-photo", "avatar-letter"], ["profile-photo-big", "profile-avatar-letter"]].forEach(([imgId, letterId]) => {
+        const img = document.getElementById(imgId);
+        if (photo) img.src = photo; else img.removeAttribute("src");
+        img.hidden = !photo;
+        document.getElementById(letterId).textContent = letter;
+        document.getElementById(letterId).hidden = !!photo;
+      });
+      document.getElementById("profile-photo-pick").textContent = photo ? "Změnit fotku 📷" : "Přidat fotku 📷";
+      document.getElementById("profile-photo-remove").hidden = !photo;
+      document.getElementById("profile-photo-circle").setAttribute("aria-label", photo ? "Změnit fotku" : "Přidat fotku");
       profileGreeting.textContent = name ? "Ahoj, " + name + " ✨" : "Ahoj ✨";
     }
+
+    // Výběr fotky: klepnutí na kolečko nebo na odkaz (telefon nabídne galerii i fotoaparát)
+    const profilePhotoInput = document.getElementById("profile-photo-input");
+    document.getElementById("profile-photo-circle").addEventListener("click", () => profilePhotoInput.click());
+    document.getElementById("profile-photo-pick").addEventListener("click", () => profilePhotoInput.click());
+    profilePhotoInput.addEventListener("change", async () => {
+      const file = profilePhotoInput.files && profilePhotoInput.files[0];
+      profilePhotoInput.value = "";
+      if (!file) return;
+      showProfilePhotoNote("Načítám fotku…");
+      let photo = null;
+      try {
+        photo = await makeProfilePhoto(file);
+      } catch (e) {}
+      if (!photo) {
+        showProfilePhotoNote("Tuhle fotku se nepodařilo načíst 😕 Zkus jinou.");
+        return;
+      }
+      if (saveProfilePhoto(photo)) {
+        profilePhotoMemory = null;
+        showProfilePhotoNote("");
+      } else {
+        profilePhotoMemory = photo;   // ukáže se aspoň do zavření appky
+        showProfilePhotoNote("Fotku se nepodařilo uložit, po zavření appky zmizí.");
+      }
+      renderProfileName();
+    });
+
+    // "Odebrat fotku": zpátky písmeno (nebo hvězdička)
+    document.getElementById("profile-photo-remove").addEventListener("click", () => {
+      profilePhotoMemory = null;
+      saveProfilePhoto("");
+      showProfilePhotoNote("");
+      renderProfileName();
+    });
 
     // Jméno se ukládá rovnou při psaní
     profileNameInput.addEventListener("input", () => {

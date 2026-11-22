@@ -42,7 +42,31 @@ A small web page that gives overwhelmed young women working in corporate a rando
     - All overrides are fetched once when the profile first opens (`fetchAllOverrides`);
       if that fails, there are no overrides.
   - `updateProgress()` refreshes the stats while the profile is open.
-  - **Phase 2 (not built):** profile photo + colour themes (see roadmap).
+  - **Profile photo (phase 2, Nov 2026):**
+    - **Choosing it:** tap the big circle (`#profile-photo-circle`) or the link
+      „Přidat fotku 📷". This uses `<input type=file accept="image/*">`, so the phone
+      offers gallery + camera.
+    - **Once set:** the photo shows in both circles (an `<img>` over the letter). The
+      links become „Změnit fotku 📷" + „Odebrat fotku", and removing it brings back the
+      letter / ★.
+    - **Processing** (`makeProfilePhoto`):
+      - decoded via `<img>`, so iPhone EXIF rotation is applied
+      - a **centre square crop**, drawn straight to 256×256
+      - stored as JPEG 0.85 data URL in localStorage key `sideQuestProfilePhoto`
+        (~20–30 kB for a real photo)
+    - **Only our own JPEG is accepted:** `loadProfilePhoto` uses the stored value only
+      if it starts with `data:image/jpeg;base64,`, so a tampered value is ignored.
+    - **If it can't be saved** (quota / blocked): it's kept in memory
+      (`profilePhotoMemory`) and shown until the app closes, with the note „Fotku se
+      nepodařilo uložit, po zavření appky zmizí."
+    - **An unreadable file:** „Tuhle fotku se nepodařilo načíst 😕 Zkus jinou." The old
+      photo stays.
+    - **Privacy (rule 4):**
+      - the photo never leaves the browser: no upload, not on the share image, not in
+        bug reports
+      - it's per browser / device
+    - „Začít znovu" keeps the photo and the name.
+  - **Still to do:** colour themes, and a better photo crop (see roadmap).
 - **„🌟 Quest dne" (Nov 2026):** one shared quest for everyone per day.
   - **Placement (owner's choice, "option C"):** a quiet outline pill „🌟 Quest dne",
     alone under the card (`.extras` row; it used to sit next to „Můj deník 📖", which
@@ -484,6 +508,7 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
    - Progress is per browser and per device.
 4. **Users' photos never leave the browser.** The share feature draws them locally
    (canvas) and only the user sends the finished image, through her own share menu.
+   The profile photo is stored only in localStorage on her device.
    Never upload, log or store a photo anywhere.
 5. **All quest text and UI text is in Czech.** The quests are written for women,
    so use feminine verb forms (e.g. „nebyla", „vděčná"). Code comments in the files
@@ -528,6 +553,17 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
       count) are right.
     - Deník / Napiš mi open over the profile; Začít znovu keeps the name.
     - The tests reload the page mid-way, so carry the results over in sessionStorage.
+    - **Photo:**
+      - the EXIF-6 test photo comes out upright in the 256×256 square
+      - 8000×6000 works (centre crop) and is stored small
+      - both circles update, and the photo survives a reload
+      - Odebrat brings back the letter
+      - a broken file gives the friendly message
+      - full storage (stub `setItem` throwing) gives the note
+      - a tampered value is ignored
+      - Začít znovu keeps the photo
+      - no network request contains the photo
+    - Photo decoding needs real time in headless Edge (busy loop), as with sharing.
   - Streak: `tests.html` shows all ✅. In the app:
     - the badge + profile text + hint, Hotovo → +1, Zpět → back
     - milestone celebration once (none on load, gone after Zpět)
@@ -591,11 +627,13 @@ writing code.
   - ~~**Phase 1**~~ done (22 Nov 2026): avatar (letter / ★) + streak badge, sheet with
     name, streak, stats, deník, Napiš mi, Instagram, credit and Začít znovu; the main
     screen is lightened.
-  - ⭐ **Phase 2, still to do:**
-    - **profile photo:** in the avatar + the big circle; never leaves the browser;
-      downscaled to e.g. 256×256 in localStorage
-    - **colour themes:** Víno (default), Levandule, Šalvěj, Noc (dark); swap the 4
-      `:root` colours and check contrast everywhere, incl. the share image
+  - **Phase 2:**
+    - ~~**profile photo**~~ done (Nov 2026): centre crop, 256×256, localStorage only
+    - ⭐ **still to do: colour themes:** Víno (default), Levandule, Šalvěj, Noc (dark).
+      Swap the 4 `:root` colours and check contrast everywhere, incl. the share image.
+  - **Better photo crop (owner's wish):** let her move / zoom the photo inside the
+    circle before saving, instead of the fixed centre crop. E.g. drag + pinch on a
+    preview circle, then save the chosen 256×256 square.
   - The original idea notes follow. Goal:
   a lighter main screen (the owner finds the app getting heavy and samey).
   - **Entry:** a round avatar button in the top-right corner (her photo, else her first
