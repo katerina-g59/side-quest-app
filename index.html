@@ -7,6 +7,8 @@
   <!-- Barva lišty prohlížeče na telefonu (přepíše ji zvolený motiv) -->
   <meta name="theme-color" content="#F4E5A7">
 
+  <!-- Prostředí: produkce, nebo staging (testovací databáze) – musí se načíst jako první -->
+  <script src="env.js"></script>
   <!-- Barevný motiv: načte se hned, aby barvy při otevření neproblikly (soubor musí být ve stejné složce) -->
   <script src="themes.js"></script>
   <script>applyTheme(loadThemeCode());</script>
@@ -792,6 +794,23 @@
       margin: -12px 0 4px;
     }
 
+    /* Štítek „🧪 TEST" (jen staging): přerušovaný rámeček, nepřehlédnutelný v každém motivu */
+    .env-badge {
+      position: sticky;
+      top: 6px;
+      z-index: 5;
+      width: fit-content;
+      margin: -14px auto 10px;
+      padding: 3px 12px;
+      border: 2px dashed var(--brown);
+      border-radius: 999px;
+      background: var(--cream);
+      color: var(--brown);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
     .topbar-spacer { flex: 1; }
 
     /* "🌟 Quest dne" vlevo nahoře: malá obrysová "pilulka", stejně vysoká jako kolečko */
@@ -1243,6 +1262,9 @@
 </head>
 <body>
   <main class="app">
+    <!-- „🧪 TEST": jen na stagingu (testovací databáze), zůstává nahoře i při posouvání -->
+    <div class="env-badge" id="env-badge" hidden>🧪 TEST</div>
+
     <!-- Horní řádek: vlevo Quest dne (otevře okno), vpravo streak ("🔥 3" / "⚠ 3") a profilové kolečko -->
     <div class="topbar">
       <button class="daily-open" id="daily-open">🌟 Quest dne</button>
@@ -1515,10 +1537,14 @@
 
   <script>
     // ===== Supabase: odtud se načítají questy =====
-    // Veřejný (publishable) klíč smí být vidět – databáze mu dovolí questy jen číst.
-    // Tajný (secret) klíč sem NIKDY nepatří.
-    const SUPABASE_URL = "https://rrcclzjcbupgshdsskgm.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_H2RVY0ok7YHztB0DcaAeIw_jQpn5DwT";
+    // Adresa a veřejný klíč (SUPABASE_URL, SUPABASE_KEY) jsou v env.js – podle toho,
+    // jestli běží produkce, nebo staging. Tajný (secret) klíč do kódu NIKDY nepatří.
+
+    // Na stagingu: štítek „🧪 TEST" nahoře a v názvu záložky, ať se to nikdy nesplete
+    if (APP_ENV === "staging") {
+      document.getElementById("env-badge").hidden = false;
+      document.title = "🧪 TEST · " + document.title;
+    }
 
     // Kategorie: krátký kód (stejný jako sloupec "category" v databázi) → název na tlačítku a štítku.
     // Nová kategorie = nový řádek tady, tlačítko filtru se přidá samo.
@@ -1561,7 +1587,7 @@
     // Pod tímto názvem si prohlížeč (localStorage) pamatuje splněné questy.
     // Formát: [{ "id": "easy-003", "date": "2026-11-06" }, ...]
     // "date" je null u questů splněných dřív, než appka začala ukládat data.
-    const STORAGE_KEY = "sideQuestDone";
+    const STORAGE_KEY = storageKey("sideQuestDone");
 
     let currentLevel = "easy";      // na začátku je vybraná lehká úroveň
     let currentCategories = [];     // vybrané kategorie (kódy); prázdný seznam = "Všechny" (nepamatuje se)
@@ -2867,7 +2893,7 @@
     // ===== 🔥 Týdenní streak =====
     // Výpočet je v streak.js. Tady jen zobrazení a oslava milníků (2, 4, 8, 12 týdnů).
     // Jediná nová věc v paměti prohlížeče: které oslavy už se ukázaly (aby každá byla jen jednou).
-    const STREAK_SHOWN_KEY = "sideQuestStreakMilestones";
+    const STREAK_SHOWN_KEY = storageKey("sideQuestStreakMilestones");
     const streakMessages = {
       2: "🔥 2 týdny v řadě! Krásný začátek, jen tak dál.",
       4: "🔥 Celý měsíc side questů! Z tohohle se stává zvyk.",
@@ -2954,7 +2980,7 @@
     // ===== 👤 Můj profil =====
     // Jméno je jediná nová věc v paměti prohlížeče (jen v tomhle prohlížeči, nikam se neposílá).
     // Fotka a barevné motivy přijdou ve 2. fázi.
-    const PROFILE_NAME_KEY = "sideQuestProfileName";
+    const PROFILE_NAME_KEY = storageKey("sideQuestProfileName");
     const profileDialog = document.getElementById("profile");
     const profileNameInput = document.getElementById("profile-name");
     const profileGreeting = document.getElementById("profile-greeting");
@@ -2979,7 +3005,7 @@
     // ----- Profilová fotka -----
     // SOUKROMÍ: fotka se jen zmenší a ořízne tady v prohlížeči a uloží se do jeho paměti
     // (localStorage). Nikam se neposílá – žádný Supabase, žádný server, ani do sdílení.
-    const PROFILE_PHOTO_KEY = "sideQuestProfilePhoto";
+    const PROFILE_PHOTO_KEY = storageKey("sideQuestProfilePhoto");
     const PROFILE_PHOTO_SIZE = 256;          // čtverec 256×256 px (asi 20–30 kB)
     let profilePhotoMemory = null;           // když se fotka nedá uložit: drží se jen do zavření appky
 
@@ -3202,7 +3228,7 @@
     // ===== Napiš mi 💌 (zpětná vazba do Supabase) =====
     // Databáze dovolí veřejnému klíči zprávy jen přidávat, ne číst. Proto posíláme
     // "Prefer: return=minimal" (nechceme uložený řádek zpátky – jinak by to selhalo).
-    const FEEDBACK_KEY = "sideQuestFeedbackSent";  // čas posledního odeslání (ochrana proti spamu)
+    const FEEDBACK_KEY = storageKey("sideQuestFeedbackSent");  // čas posledního odeslání (ochrana proti spamu)
     const FEEDBACK_WAIT = 30;                       // sekund mezi dvěma zprávami
 
     // Poděkování po odeslání (návrh questu má vlastní text: se souhlasem s podpisem / bez něj)

@@ -33,7 +33,8 @@ const THEMES = {
   }
 };
 
-const THEME_KEY = "sideQuestTheme";
+// Na stagingu se motiv ukládá zvlášť (storageKey z env.js; tests.html env.js nenačítá)
+const THEME_KEY = typeof storageKey === "function" ? storageKey("sideQuestTheme") : "sideQuestTheme";
 const DEFAULT_THEME = "vino";
 
 // Uložený motiv (neznámý nebo žádný → Víno)

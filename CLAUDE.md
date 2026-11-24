@@ -362,6 +362,13 @@ A small web page that gives overwhelmed young women working in corporate a rando
     `THEME_PAIRS` for the tests
   - loaded in `<head>` of `index.html` and by `tests.html`, so it must stay in the same
     folder
+- `env.js` – chooses staging or production (see "Staging"):
+  - `SUPABASE_ENVS`, `APP_ENV`, `SUPABASE_URL`, `SUPABASE_KEY`, `storageKey()`
+  - loaded first in `<head>`; must stay in the same folder
+  - `index.html` no longer defines the Supabase address itself
+- `.gitignore` – keeps `supabase/staging-data.sql` off GitHub.
+- `supabase/staging-schema.sql` / `supabase/staging-data.sql` – staging setup (see
+  "Staging").
 - `supabase/setup.sql` – one-time database setup (table, read-only security, the original
   96 quests). Pasted into Supabase → SQL Editor. Safe to re-run: it never overwrites quests.
 - `supabase/functions/feedback-email/index.ts` – backup of the Edge Function that emails
@@ -506,10 +513,61 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   - table `public.feedback`, event Insert
   - type "Supabase Edge Functions" → `super-responder` (shown as `feedback-email`), method POST
   - HTTP header `x-webhook-secret: <the same password>`
+- **Production only:** the staging project has no webhook and no Edge Function, so
+  staging messages send no email.
 - **Logs:** Edge Functions → `feedback-email` → Logs / Invocations. Webhook calls:
   Database → Webhooks, or the `net._http_response` table.
 - Limits: Resend free plan is about 100 emails/day. The 30 s spam limit is only in the
   app.
+
+## Staging (test environment, Nov 2026)
+- **Two Supabase projects with the same structure:**
+  - **Production:** https://rrcclzjcbupgshdsskgm.supabase.co, used by real users.
+  - **Staging:** project „side-quest-app-staging",
+    https://qhcdckwtcjxwcxzqkkgq.supabase.co (publishable key in `env.js`), for trying
+    changes first.
+- **The app chooses by itself** (`env.js`, loaded first in `<head>`):
+  - opened as a file (double-click `index.html`) → **staging**
+  - the live GitHub Pages site → **production**
+  - `?env=staging` on the live site → staging (to test on the phone in Safari)
+  - `?env=production` locally → production (to look at real data)
+- **On staging:**
+  - a sticky dashed pill **„🧪 TEST"** at the top centre (`#env-badge`, theme colours)
+  - the tab title starts with „🧪 TEST · "
+  - **every localStorage key gets the prefix `staging:`** (`storageKey()` in `env.js`:
+    progress, name, photo, theme, streak milestones, feedback timer), so testing never
+    mixes with real progress, even on the live site
+- **The webhook stays in production only:** the feedback email (Database Webhook → Edge
+  Function → Resend) exists **only in production**.
+  - Messages sent on staging land in the staging `feedback` table, with **no email**.
+    Read them in the staging dashboard.
+  - Never add the webhook to staging.
+- **Setup files:**
+  - `supabase/staging-schema.sql`: the complete current structure in one script (all 3
+    tables, constraints, RLS, policies, grants), with no data and no webhook. Re-runnable
+    and harmless.
+  - `supabase/staging-data.sql`: a copy of all quests + special days from production,
+    generated via the public read API (upsert, re-runnable). It's **in `.gitignore`**
+    (it shows future special quests), and must **never be run in production**.
+    - To refresh staging, ask Claude to regenerate it, or export/import CSV in the
+      dashboard (quests first, then `daily_quest_overrides`).
+  - Set up 24 Nov 2026: 106 quests and 1 special day, identical to production. Security
+    checked with the staging key: quests / overrides are read-only (write → 401), and
+    feedback is insert-only (select / update / delete / fake id → 401).
+- **Owner's routine for every change (follow it):**
+  1. **Database change:** write it as a new SQL file in `supabase/`.
+  2. Run it in **staging** (staging project → SQL Editor).
+  3. **Test locally:** double-click `index.html` (it uses staging and shows 🧪 TEST).
+     On the phone, use the live site with `?env=staging` (only after the app is pushed;
+     before that, test locally).
+  4. When it works, run the same SQL in **production**.
+  5. Check security with the publishable key (see "How to test").
+  6. Only then **commit + push** the app.
+
+  If the app changes but the database doesn't, steps 1–2 and 4 are skipped, but still
+  test locally (staging) before pushing.
+- `supabase/staging-schema.sql` must stay in step with production: every new SQL file
+  for production should also be added to it (so a fresh staging can be rebuilt).
 
 ## Online (GitHub)
 - Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)
@@ -567,6 +625,14 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
 
 ## How to test
 - Open `index.html` straight from disk (`file:///…`), the way the user does.
+  **A local file now uses STAGING** (badge „🧪 TEST", localStorage keys prefixed
+  `staging:`). Test scripts that write localStorage directly must use the prefix (or
+  `storageKey()`), or open with `?env=production`.
+- **Environment checks:**
+  - file → staging (badge, title, all requests to the staging host, keys prefixed)
+  - `?env=production` locally → production (no badge, no prefix)
+  - `?datum=2026-11-29` on staging shows the special day
+  - the badge stays visible when scrolled
 - Note: the built-in browser pane turns local files into a snapshot, so test with real
   Edge/Chrome instead, e.g. headless Edge (`msedge --headless=new --dump-dom` or
   `--screenshot`) on a copy of the files in a temporary folder.
