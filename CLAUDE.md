@@ -35,7 +35,9 @@ A small web page that gives overwhelmed young women working in corporate a rando
        - the per-level line „Lehká 5/43 · Střední 0/31 · Těžká 0/31"
     4. „Můj deník 📖" (primary button; the deník opens over the profile).
     5. Quiet footer: „Napiš mi 💌" · @after_hours_project_, „Vytvořeno v rámci
-       30hodinové challenge" (owner changed 90 → 30), and „Začít znovu" (keeps the name).
+       30hodinové challenge" (owner changed 90 → 30), „Návštěvy počítám anonymně, bez
+       cookies 🍪✖️" (hidden 5-tap switch, see "Visit statistics"), and „Začít znovu"
+       (keeps the name).
   - **„Questů dne" count** (`countDailyDone`): a deník entry counts if its id was the
     Quest dne on its own date (override first, else `automaticDailyQuest`).
     - Calculated, not stored.
@@ -568,6 +570,58 @@ No frameworks, no build step, nothing to install. Supabase is called with a plai
   test locally (staging) before pushing.
 - `supabase/staging-schema.sql` must stay in step with production: every new SQL file
   for production should also be added to it (so a fresh staging can be rebuilt).
+
+## Visit statistics (GoatCounter, Nov 2026)
+- **Where to see them:** https://sidequest-app.goatcounter.com (the owner's GoatCounter
+  account). Code `sidequest-app`.
+- **Privacy-friendly:** no cookies, no personal data, no cookie banner needed.
+  - GoatCounter itself records the browser, screen size, country (from the IP, which it
+    doesn't store) and referrer.
+- **Only on the live production site:**
+  - `STATS_ON = APP_ENV === "production"` **and** `https:` **and** hostname
+    `katerina-g59.github.io`
+  - the script `https://gc.zgo.at/count.js` is added from JavaScript only then
+  - never from a local file, never with `?env=staging`; not a single request goes there
+- **Settings:**
+  - `window.goatcounter = { no_onload: true }`, so the app counts the visit itself as
+    path **„/"** (no `?datum=` or other parameters)
+  - endpoint `data-goatcounter="https://sidequest-app.goatcounter.com/count"`
+  - events fired before the script loads are queued
+  - if the script is blocked or offline, nothing changes in the app
+- **Events (short English names, fixed list `STATS_EVENTS`):**
+  - `quest-generated`: „Dej mi side quest ✨" showed a quest
+  - `quest-done`: Hotovo on the main card (only the first time)
+  - `daily-done`: Hotovo on the Quest dne
+  - `share`: the share window opened
+  - `feedback-sent`: only after a successful send
+  - `profile-opened`
+  - `theme-vino` / `theme-levandule` / `theme-salvej` / `theme-noc`: only when the theme
+    actually changes
+- **Rule (never break):**
+  - events are sent **only** via `trackEvent(name)`, which ignores any name not in
+    `STATS_EVENTS`
+  - each sends only `{ path: name, title: name, event: true }`
+  - **never** user text, quest texts or IDs, names, Instagram handles or photos
+  - a new event = a new fixed English name added to `STATS_EVENTS`
+- **The profile footer** shows „Návštěvy počítám anonymně, bez cookies 🍪✖️"
+  (`#stats-note`).
+- **Excluding the owner's own visits:**
+  - **The hidden switch:** tap **5×** (within 3 s) on „Návštěvy počítám anonymně…" in
+    the profile.
+    - It shows „✓ Tohle zařízení se nepočítá"; 5× again → „Tohle zařízení se zase
+      počítá".
+    - It sets GoatCounter's own localStorage key **`skipgc` = `"t"`** (raw key, no
+      staging prefix).
+    - It works in the iPhone home-screen app too, which has its own storage, so do it
+      once in each browser / app.
+  - **Alternative in a browser:** open
+    https://katerina-g59.github.io/side-quest-app/#toggle-goatcounter (the same
+    setting).
+- **Testing:**
+  - locally, check there are no requests to `goatcounter` / `gc.zgo.at`
+  - for the production path, use a test copy with `STATS_ON = true` and a fake
+    `count.js` that records calls (never count real visits while testing)
+  - on the live site, set `skipgc` first
 
 ## Online (GitHub)
 - Live app: https://katerina-g59.github.io/side-quest-app/ (GitHub Pages, from branch `main`, folder `/`)

@@ -1071,6 +1071,18 @@
 
     .profile-credit { opacity: 0.75; }
 
+    /* "Návštěvy počítám anonymně…" (skrytý přepínač: 5× klepnout) */
+    #stats-note {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .profile-stats-excluded {
+      font-weight: 600;
+      color: var(--wine);
+    }
+
     .profile .reset { margin-top: 16px; min-height: 44px; }
 
     .journal-streak {
@@ -1387,6 +1399,9 @@
           <a href="https://www.instagram.com/after_hours_project_/" target="_blank" rel="noopener">@after_hours_project_</a>
         </p>
         <p class="profile-credit">Vytvořeno v rámci 30hodinové challenge</p>
+        <!-- Skrytý přepínač pro majitelku: 5× klepnout = tohle zařízení se nepočítá do statistik -->
+        <p class="profile-credit" id="stats-note">Návštěvy počítám anonymně, bez cookies 🍪✖️</p>
+        <p class="profile-stats-excluded" id="stats-excluded" role="status" hidden></p>
         <button class="reset" id="reset">Začít znovu</button>
       </div>
     </div>
@@ -1544,6 +1559,54 @@
     if (APP_ENV === "staging") {
       document.getElementById("env-badge").hidden = false;
       document.title = "🧪 TEST · " + document.title;
+    }
+
+    // ===== Statistiky návštěv (GoatCounter: anonymně, bez cookies) =====
+    // Počítá se JEN na živé stránce v produkci – nikdy ze souboru ani na stagingu (?env=staging).
+    // Posílají se jen pevné názvy událostí z tohoto seznamu. Nikdy žádný text od uživatelky
+    // (questy, zprávy, jména, Instagram, fotky) ani ID questů.
+    // Statistiky: https://sidequest-app.goatcounter.com
+    const STATS_ENDPOINT = "https://sidequest-app.goatcounter.com/count";
+    const STATS_EVENTS = [
+      "quest-generated", "quest-done", "daily-done", "share", "feedback-sent", "profile-opened",
+      ...Object.keys(THEMES).map(code => "theme-" + code)   // theme-vino, theme-noc, …
+    ];
+    const STATS_ON = APP_ENV === "production"
+      && location.protocol === "https:" && location.hostname === "katerina-g59.github.io";
+    let statsQueue = [];   // události, které přijdou dřív, než se skript GoatCounteru načte
+
+    if (STATS_ON) {
+      // no_onload: návštěvu pošleme sami, jen jako "/" (bez ?datum= a jiných parametrů v adrese)
+      window.goatcounter = { no_onload: true };
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = "https://gc.zgo.at/count.js";
+      script.dataset.goatcounter = STATS_ENDPOINT;
+      script.addEventListener("load", () => {
+        try {
+          window.goatcounter.count({ path: "/" });
+          statsQueue.forEach(sendStatsEvent);
+        } catch (e) {}
+        statsQueue = null;
+      });
+      // Když se nenačte (blokátor reklam, bez internetu), appka funguje dál úplně stejně
+      script.addEventListener("error", () => { statsQueue = null; });
+      document.head.appendChild(script);
+    }
+
+    function sendStatsEvent(name) {
+      try {
+        if (window.goatcounter && typeof window.goatcounter.count === "function") {
+          window.goatcounter.count({ path: name, title: name, event: true });
+        }
+      } catch (e) {}
+    }
+
+    // Jediná cesta, jak poslat událost: jen na produkci a jen název z pevného seznamu
+    function trackEvent(name) {
+      if (!STATS_ON || !STATS_EVENTS.includes(name)) return;
+      if (statsQueue) statsQueue.push(name);
+      else sendStatsEvent(name);
     }
 
     // Kategorie: krátký kód (stejný jako sloupec "category" v databázi) → název na tlačítku a štítku.
@@ -2013,6 +2076,7 @@
       doneButton.disabled = false;
       doneButton.hidden = false;
       showOnCard(levelNames[currentLevel] + " úroveň", quest.text, quest.category, quest.budget, quest.author);
+      trackEvent("quest-generated");
     });
 
     // Kliknutí na "Hotovo ✓": uloží ID questu jako splněné
@@ -2023,6 +2087,7 @@
       if (!isDone(quest.id)) {
         doneEntries.push({ id: quest.id, date: todayString() });
         saveDone();
+        trackEvent("quest-done");
       }
       updateProgress();
       celebrateStreak();
@@ -2457,6 +2522,7 @@
 
     // Otevře okno "Sdílet" pro daný quest (z karty nebo z deníku)
     function openShare(quest, date) {
+      trackEvent("share");
       shareSession++;
       shareQuest = quest;
       shareDate = date || null;
@@ -2848,6 +2914,7 @@
       if (!dailyQuest || isDone(dailyQuest.id)) return;
       doneEntries.push({ id: dailyQuest.id, date: todayString() });
       saveDone();
+      trackEvent("daily-done");
       dailyJustDone = dailyQuest.id;
       updateProgress();   // překreslí i tuhle kartu
       celebrateStreak();
@@ -3185,6 +3252,7 @@
       label.textContent = theme.name;
       button.append(swatch, label);
       button.addEventListener("click", () => {
+        if (document.documentElement.dataset.theme !== code) trackEvent("theme-" + code);
         saveThemeCode(code);
         applyTheme(code);
         renderThemeOptions();
@@ -3203,8 +3271,40 @@
     }
     renderThemeOptions();
 
+    // ----- Skrytý přepínač: "tohle zařízení se nepočítá" do statistik -----
+    // 5 klepnutí (do 3 sekund) na "Návštěvy počítám anonymně…" v profilu. Používá stejné
+    // nastavení jako GoatCounter (localStorage "skipgc" = "t"; stejné jako adresa
+    // …#toggle-goatcounter), takže platí pro celý prohlížeč i pro appku z plochy.
+    const STATS_SKIP_KEY = "skipgc";
+    let statsTaps = [];
+
+    function isStatsExcluded() {
+      try { return localStorage.getItem(STATS_SKIP_KEY) === "t"; } catch (e) { return false; }
+    }
+
+    function renderStatsExclusion(justChanged) {
+      const note = document.getElementById("stats-excluded");
+      const excluded = isStatsExcluded();
+      note.hidden = !excluded && !justChanged;
+      note.textContent = excluded ? "✓ Tohle zařízení se nepočítá" : "Tohle zařízení se zase počítá";
+    }
+
+    document.getElementById("stats-note").addEventListener("click", () => {
+      const now = Date.now();
+      statsTaps = statsTaps.filter(t => now - t < 3000).concat(now);
+      if (statsTaps.length < 5) return;
+      statsTaps = [];
+      try {
+        if (isStatsExcluded()) localStorage.removeItem(STATS_SKIP_KEY);
+        else localStorage.setItem(STATS_SKIP_KEY, "t");
+      } catch (e) {}
+      renderStatsExclusion(true);
+    });
+
     // Otevření profilu (kolečko i odznak streaku), zavření ✕ / Esc / klepnutím vedle
     async function openProfile() {
+      trackEvent("profile-opened");
+      renderStatsExclusion();
       profileNameInput.value = loadProfileName();
       renderProfileName();
       renderStreak();
@@ -3373,6 +3473,7 @@
         feedbackConsentCheck.checked = false;
         feedbackForm.hidden = true;
         feedbackThanks.hidden = false;
+        trackEvent("feedback-sent");   // jen název události – nikdy obsah zprávy
       } catch (err) {
         // Nepovedlo se: text zůstane ve formuláři, stačí to zkusit znovu
         showFeedbackStatus("Zprávu se teď nepodařilo odeslat 😕 Zkontroluj připojení k internetu a zkus to znovu. Tvůj text tu zůstal.");
